@@ -56,7 +56,7 @@ Spring Boot 프로젝트를 위한 GitHub 템플릿 레포지토리입니다. �
 3. 왼쪽 사이드바에서 **Secrets and variables** → **Actions**를 선택합니다.
 4. **New repository secret**을 클릭합니다.
 5. Secret 설정:
-   - **Name**: `REPOSITORY_TOKEN`
+   - **Name**: `GH_TOKEN`
    - **Secret**: 앞서 생성한 Personal Access Token을 붙여넣기
 6. **Add secret**을 클릭합니다.
 
@@ -116,7 +116,7 @@ Spring Boot 프로젝트를 위한 GitHub 템플릿 레포지토리입니다. �
 ### 라벨 동기화가 작동하지 않는 경우
 
 1. **REPOSITORY_TOKEN Secret 확인**:
-   - Repository Settings → Secrets and variables → Actions에서 `REPOSITORY_TOKEN`이 정확히 설정되어 있는지 확인
+   - Repository Settings → Secrets and variables → Actions에서 `GH_TOKEN`이 정확히 설정되어 있는지 확인
    - Token이 만료되지 않았는지 확인
 
 2. **Token 권한 확인**:
