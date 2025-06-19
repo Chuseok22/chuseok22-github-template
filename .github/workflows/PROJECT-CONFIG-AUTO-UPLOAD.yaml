@@ -2,15 +2,16 @@
 # 프로젝트 설정 파일 관리 워크플로우
 # ===================================================================
 #
-# 이 워크플로우는 프로젝트의 설정 파일을 안전하게 관리하고 SMB 서버에 배포합니다.
+# 이 워크플로우는 프로젝트의 설정 파일을 안전하게 관리하고 SSH를 통해 서버에 업로드합니다.
 #
 # 사용 방법:
 # 1. 아래 PROJECT_NAME과 PROJECT_TYPE 변수를 수정하세요.
 # 2. 필요한 GitHub Secrets를 설정하세요.
 #
 # 필수 GitHub Secrets:
-# - WEB_SMB_USERNAME: SMB 서버 사용자명
-# - WEB_SMB_PASSWORD: SMB 서버 비밀번호
+# - SERVER_HOST: 서버 호스트 주소
+# - SERVER_USER: SSH 사용자명
+# - SERVER_PASSWORD: SSH 비밀번호
 #
 # 설정 파일용 GitHub Secrets (프로젝트 유형에 따라 선택):
 # 
@@ -18,6 +19,7 @@
 # - APPLICATION_YML: application.yml 파일 내용
 # - APPLICATION_DEV_YML: application-dev.yml 파일 내용 (옵션)
 # - APPLICATION_PROD_YML: application-prod.yml 파일 내용 (옵션)
+# - SA_KEY: 서비스 계정 키 파일 내용 (옵션)
 # 
 # Frontend 프로젝트:
 # - ENV_FILE: .env 파일 내용
@@ -26,9 +28,9 @@
 #
 # 다른 설정 파일을 추가하려면:
 # 1. GitHub에 해당 Secret 추가
-# 2. 이 워크플로우의 "환경 파일 생성" 단계에 새 파일 생성 로직 추가
-# 3. "CI/CD 정보 JSON 파일 생성" 단계에 파일 정보 추가
-# 4. 필요한 경우 파일 복사 로직 추가
+# 2. 이 워크플로우의 파일 업로드 스크립트에 새 파일 업로드 로직 추가
+# 3. "파일 업로드" 단계에서 파일 목록에 추가
+# 4. 메타데이터 JSON 파일의 files 배열에 정보 추가
 #
 # ===================================================================
 
@@ -36,31 +38,23 @@ name: 프로젝트 설정 파일 관리
 
 on:
   push:
-    branches: ["main"]
-  workflow_dispatch:
+    branches:
+      - main
+  workflow_dispatch:  # 수동 실행 옵션 추가
 
 # 프로젝트 설정 변수 - 이 부분을 프로젝트에 맞게 수정하세요
 env:
-  PROJECT_NAME: "test_project" # 여기에 프로젝트 이름을 입력하세요
-  PROJECT_TYPE: "backend"          # frontend 또는 backend 중 선택하세요
+  PROJECT_NAME: "your_project_name" # 여기에 프로젝트 이름을 입력하세요
+  PROJECT_TYPE: "backend"           # frontend 또는 backend 중 선택하세요
 
 jobs:
-  config-files-management:
-    name: 설정 파일 자동 업로드
+  upload-files:
     runs-on: ubuntu-latest
-
     steps:
       - name: 코드 체크아웃
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+        uses: actions/checkout@v4
 
-      - name: 필요 패키지 설치
-        run: |
-          sudo apt-get install -y smbclient jq
-          echo "SMB와 jq 설치 완료"
-
-      # 타임스탬프 폴더 생성
+      # 타임스탬프 폴더명 생성
       - name: 타임스탬프 폴더명 생성
         run: |
           # Asia/Seoul 로컬타임 사용
@@ -68,67 +62,8 @@ jobs:
           # YYYY-MM-DD_HH-MM-SS 형식
           TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
           echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date '+%Y-%m-%d %H:%M')" >> $GITHUB_ENV
           echo "생성된 타임스탬프: $TIMESTAMP"
-
-      # GitHub Secret에서 환경 파일들 생성
-      - name: 환경 파일 생성
-        run: |
-          # 프로젝트 타입에 따라 다른 설정 파일 생성
-          if [ "${{ env.PROJECT_TYPE }}" = "backend" ]; then
-            echo "백엔드 프로젝트 설정 파일 생성 중..."
-            
-            # application.yml 파일 생성 (필수)
-            if [ ! -z "${{ secrets.APPLICATION_YML }}" ]; then
-              echo "${{ secrets.APPLICATION_YML }}" > application.yml
-              echo "application.yml 파일 생성 성공 (크기: $(stat -c%s "application.yml") 바이트)"
-            else
-              echo "경고: APPLICATION_YML Secret이 설정되지 않았습니다"
-            fi
-            
-            # application-dev.yml 파일 생성 (선택)
-            if [ ! -z "${{ secrets.APPLICATION_DEV_YML }}" ]; then
-              echo "${{ secrets.APPLICATION_DEV_YML }}" > application-dev.yml
-              echo "application-dev.yml 파일 생성 성공 (크기: $(stat -c%s "application-dev.yml") 바이트)"
-            fi
-            
-            # application-prod.yml 파일 생성 (선택)
-            if [ ! -z "${{ secrets.APPLICATION_PROD_YML }}" ]; then
-              echo "${{ secrets.APPLICATION_PROD_YML }}" > application-prod.yml
-              echo "application-prod.yml 파일 생성 성공 (크기: $(stat -c%s "application-prod.yml") 바이트)"
-            fi
-            
-          elif [ "${{ env.PROJECT_TYPE }}" = "frontend" ]; then
-            echo "프론트엔드 프로젝트 설정 파일 생성 중..."
-            
-            # .env 파일 생성 (필수)
-            if [ ! -z "${{ secrets.ENV_FILE }}" ]; then
-              echo "${{ secrets.ENV_FILE }}" > .env
-              echo ".env 파일 생성 성공 (크기: $(stat -c%s ".env") 바이트)"
-            else
-              echo "경고: ENV_FILE Secret이 설정되지 않았습니다"
-            fi
-            
-            # .env.development 파일 생성 (선택)
-            if [ ! -z "${{ secrets.ENV_DEV_FILE }}" ]; then
-              echo "${{ secrets.ENV_DEV_FILE }}" > .env.development
-              echo ".env.development 파일 생성 성공 (크기: $(stat -c%s ".env.development") 바이트)"
-            fi
-            
-            # .env.production 파일 생성 (선택)
-            if [ ! -z "${{ secrets.ENV_PROD_FILE }}" ]; then
-              echo "${{ secrets.ENV_PROD_FILE }}" > .env.production
-              echo ".env.production 파일 생성 성공 (크기: $(stat -c%s ".env.production") 바이트)"
-            fi
-          else
-            echo "알 수 없는 프로젝트 타입: ${{ env.PROJECT_TYPE }}"
-          fi
-          
-          # 프로젝트별 추가 설정 파일 생성 로직은 여기에 추가
-          # 예시:
-          # if [ ! -z "${{ secrets.ANOTHER_SECRET }}" ]; then
-          #   echo "${{ secrets.ANOTHER_SECRET }}" > path/to/file
-          #   echo "파일 생성 성공"
-          # fi
 
       # 짧은 커밋 해시 계산
       - name: 짧은 커밋 해시 계산
@@ -136,273 +71,192 @@ jobs:
           echo "SHORT_COMMIT_HASH=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
           echo "짧은 커밋 해시: $(echo ${{ github.sha }} | cut -c1-7)"
 
-      # 시간 기반 정보 디렉토리 생성
-      - name: CI/CD 정보 JSON 파일 생성
-        run: |
-          export TZ='Asia/Seoul'
-          BUILD_DATE=$(date '+%Y-%m-%d %H:%M')
-          
-          # 파일 목록 및 크기 정보 초기화
-          FILES_JSON=""
-          
-          # 프로젝트 타입에 따른 파일 정보 수집
-          if [ "${{ env.PROJECT_TYPE }}" = "backend" ]; then
-            # application.yml 정보 수집
-            if [ -f "application.yml" ]; then
-              APP_YML_SIZE=$(stat -c%s "application.yml" 2>/dev/null || echo "0")
-              FILES_JSON="${FILES_JSON}
-              {
-                \"file_name\": \"application.yml\",
-                \"file_path\": \"/\",
-                \"file_size\": \"${APP_YML_SIZE}\",
-                \"last_updated\": \"${BUILD_DATE}\"
-              },"
+      - name: 서버에 파일 업로드
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 2022  # 필요시 포트 번호 변경
+          envs: TIMESTAMP,SHORT_COMMIT_HASH,BUILD_DATE,PROJECT_NAME,PROJECT_TYPE
+          script: |
+            set -e
+            
+            echo "환경변수 설정.."
+            export PW=${{ secrets.SERVER_PASSWORD }}
+            
+            # 메인 디렉토리 경로 설정
+            MAIN_DIR="/volume1/projects/${PROJECT_NAME}/github_secret/${PROJECT_TYPE}"
+            
+            # 최신 파일 저장 디렉토리 생성
+            echo "메인 디렉토리 생성 중... ($MAIN_DIR)"
+            echo $PW | sudo -S mkdir -p $MAIN_DIR
+            
+            # 타임스탬프 백업 디렉토리 생성
+            echo "타임스탬프 백업 디렉토리 생성 중... ($MAIN_DIR/$TIMESTAMP)"
+            echo $PW | sudo -S mkdir -p $MAIN_DIR/$TIMESTAMP
+            
+            # 프로젝트 타입에 따라 다른 설정 파일 업로드
+            FILES_JSON=""
+            
+            if [ "$PROJECT_TYPE" = "backend" ]; then
+              echo "백엔드 프로젝트 설정 파일 업로드 중..."
+              
+              # application.yml 파일 업로드 (있는 경우)
+              if [ ! -z "${{ secrets.APPLICATION_YML }}" ]; then
+                echo "application.yml 파일 업로드 중..."
+                echo "${{ secrets.APPLICATION_YML }}" | sudo tee $MAIN_DIR/application.yml > /dev/null
+                echo "${{ secrets.APPLICATION_YML }}" | sudo tee $MAIN_DIR/$TIMESTAMP/application.yml > /dev/null
+                echo "application.yml 업로드 완료"
+                
+                # JSON에 파일 정보 추가
+                FILES_JSON="${FILES_JSON}
+                {
+                  \"file_name\": \"application.yml\",
+                  \"file_path\": \"/\",
+                  \"last_updated\": \"$BUILD_DATE\"
+                },"
+              fi
+              
+              # application-dev.yml 파일 업로드 (있는 경우)
+              if [ ! -z "${{ secrets.APPLICATION_DEV_YML }}" ]; then
+                echo "application-dev.yml 파일 업로드 중..."
+                echo "${{ secrets.APPLICATION_DEV_YML }}" | sudo tee $MAIN_DIR/application-dev.yml > /dev/null
+                echo "${{ secrets.APPLICATION_DEV_YML }}" | sudo tee $MAIN_DIR/$TIMESTAMP/application-dev.yml > /dev/null
+                echo "application-dev.yml 업로드 완료"
+                
+                # JSON에 파일 정보 추가
+                FILES_JSON="${FILES_JSON}
+                {
+                  \"file_name\": \"application-dev.yml\",
+                  \"file_path\": \"/\",
+                  \"last_updated\": \"$BUILD_DATE\"
+                },"
+              fi
+              
+              # application-prod.yml 파일 업로드 (있는 경우)
+              if [ ! -z "${{ secrets.APPLICATION_PROD_YML }}" ]; then
+                echo "application-prod.yml 파일 업로드 중..."
+                echo "${{ secrets.APPLICATION_PROD_YML }}" | sudo tee $MAIN_DIR/application-prod.yml > /dev/null
+                echo "${{ secrets.APPLICATION_PROD_YML }}" | sudo tee $MAIN_DIR/$TIMESTAMP/application-prod.yml > /dev/null
+                echo "application-prod.yml 업로드 완료"
+                
+                # JSON에 파일 정보 추가
+                FILES_JSON="${FILES_JSON}
+                {
+                  \"file_name\": \"application-prod.yml\",
+                  \"file_path\": \"/\",
+                  \"last_updated\": \"$BUILD_DATE\"
+                },"
+              fi
+              
+              # 서비스 계정 키 파일 업로드 (있는 경우)
+              if [ ! -z "${{ secrets.SA_KEY }}" ]; then
+                echo "서비스 계정 키 파일 업로드 중..."
+                echo "${{ secrets.SA_KEY }}" | sed 's/\\n/\n/g' | sudo tee $MAIN_DIR/service-account-key.json > /dev/null
+                echo "${{ secrets.SA_KEY }}" | sed 's/\\n/\n/g' | sudo tee $MAIN_DIR/$TIMESTAMP/service-account-key.json > /dev/null
+                echo "서비스 계정 키 파일 업로드 완료"
+                
+                # JSON에 파일 정보 추가
+                FILES_JSON="${FILES_JSON}
+                {
+                  \"file_name\": \"service-account-key.json\",
+                  \"file_path\": \"/\",
+                  \"last_updated\": \"$BUILD_DATE\"
+                },"
+              fi
+              
+            elif [ "$PROJECT_TYPE" = "frontend" ]; then
+              echo "프론트엔드 프로젝트 설정 파일 업로드 중..."
+              
+              # .env 파일 업로드 (있는 경우)
+              if [ ! -z "${{ secrets.ENV_FILE }}" ]; then
+                echo ".env 파일 업로드 중..."
+                echo "${{ secrets.ENV_FILE }}" | sudo tee $MAIN_DIR/.env > /dev/null
+                echo "${{ secrets.ENV_FILE }}" | sudo tee $MAIN_DIR/$TIMESTAMP/.env > /dev/null
+                echo ".env 업로드 완료"
+                
+                # JSON에 파일 정보 추가
+                FILES_JSON="${FILES_JSON}
+                {
+                  \"file_name\": \".env\",
+                  \"file_path\": \"/\",
+                  \"last_updated\": \"$BUILD_DATE\"
+                },"
+              fi
+              
+              # .env.development 파일 업로드 (있는 경우)
+              if [ ! -z "${{ secrets.ENV_DEV_FILE }}" ]; then
+                echo ".env.development 파일 업로드 중..."
+                echo "${{ secrets.ENV_DEV_FILE }}" | sudo tee $MAIN_DIR/.env.development > /dev/null
+                echo "${{ secrets.ENV_DEV_FILE }}" | sudo tee $MAIN_DIR/$TIMESTAMP/.env.development > /dev/null
+                echo ".env.development 업로드 완료"
+                
+                # JSON에 파일 정보 추가
+                FILES_JSON="${FILES_JSON}
+                {
+                  \"file_name\": \".env.development\",
+                  \"file_path\": \"/\",
+                  \"last_updated\": \"$BUILD_DATE\"
+                },"
+              fi
+              
+              # .env.production 파일 업로드 (있는 경우)
+              if [ ! -z "${{ secrets.ENV_PROD_FILE }}" ]; then
+                echo ".env.production 파일 업로드 중..."
+                echo "${{ secrets.ENV_PROD_FILE }}" | sudo tee $MAIN_DIR/.env.production > /dev/null
+                echo "${{ secrets.ENV_PROD_FILE }}" | sudo tee $MAIN_DIR/$TIMESTAMP/.env.production > /dev/null
+                echo ".env.production 업로드 완료"
+                
+                # JSON에 파일 정보 추가
+                FILES_JSON="${FILES_JSON}
+                {
+                  \"file_name\": \".env.production\",
+                  \"file_path\": \"/\",
+                  \"last_updated\": \"$BUILD_DATE\"
+                },"
+              fi
             fi
             
-            # application-dev.yml 정보 수집
-            if [ -f "application-dev.yml" ]; then
-              APP_DEV_YML_SIZE=$(stat -c%s "application-dev.yml" 2>/dev/null || echo "0")
-              FILES_JSON="${FILES_JSON}
-              {
-                \"file_name\": \"application-dev.yml\",
-                \"file_path\": \"/\",
-                \"file_size\": \"${APP_DEV_YML_SIZE}\",
-                \"last_updated\": \"${BUILD_DATE}\"
-              },"
-            fi
+            # 마지막 쉼표 제거
+            FILES_JSON=$(echo "$FILES_JSON" | sed '$ s/,$//')
             
-            # application-prod.yml 정보 수집
-            if [ -f "application-prod.yml" ]; then
-              APP_PROD_YML_SIZE=$(stat -c%s "application-prod.yml" 2>/dev/null || echo "0")
-              FILES_JSON="${FILES_JSON}
-              {
-                \"file_name\": \"application-prod.yml\",
-                \"file_path\": \"/\",
-                \"file_size\": \"${APP_PROD_YML_SIZE}\",
-                \"last_updated\": \"${BUILD_DATE}\"
-              },"
-            fi
+            # 메타데이터 JSON 파일 생성 및 업로드
+            echo "메타데이터 JSON 파일 생성 중..."
+            cat << EOF | sudo tee $MAIN_DIR/$TIMESTAMP/cicd-gitignore-file.json > /dev/null
+            {
+              "build_info": {
+                "timestamp": "$TIMESTAMP",
+                "workflow": "설정 파일 관리",
+                "run_id": "${{ github.run_id }}",
+                "run_number": "${{ github.run_number }}",
+                "job": "upload-files",
+                "event": "${{ github.event_name }}",
+                "repository": "${{ github.repository }}",
+                "owner": "${{ github.repository_owner }}",
+                "branch": "${{ github.ref_name }}",
+                "commit_hash": "${{ github.sha }}",
+                "short_hash": "$SHORT_COMMIT_HASH",
+                "commit_url": "https://github.com/${{ github.repository }}/commit/${{ github.sha }}",
+                "actor": "${{ github.actor }}",
+                "build_date": "$BUILD_DATE",
+                "runner_os": "${{ runner.os }}"
+              },
+              "files": [
+                $FILES_JSON
+              ]
+            }
+            EOF
+            echo "메타데이터 JSON 파일 업로드 완료"
             
-          elif [ "${{ env.PROJECT_TYPE }}" = "frontend" ]; then
-            # .env 정보 수집
-            if [ -f ".env" ]; then
-              ENV_SIZE=$(stat -c%s ".env" 2>/dev/null || echo "0")
-              FILES_JSON="${FILES_JSON}
-              {
-                \"file_name\": \".env\",
-                \"file_path\": \"/\",
-                \"file_size\": \"${ENV_SIZE}\",
-                \"last_updated\": \"${BUILD_DATE}\"
-              },"
-            fi
+            # 최신 메타데이터도 루트에 복사
+            sudo cp $MAIN_DIR/$TIMESTAMP/cicd-gitignore-file.json $MAIN_DIR/cicd-gitignore-file.json
             
-            # .env.development 정보 수집
-            if [ -f ".env.development" ]; then
-              ENV_DEV_SIZE=$(stat -c%s ".env.development" 2>/dev/null || echo "0")
-              FILES_JSON="${FILES_JSON}
-              {
-                \"file_name\": \".env.development\",
-                \"file_path\": \"/\",
-                \"file_size\": \"${ENV_DEV_SIZE}\",
-                \"last_updated\": \"${BUILD_DATE}\"
-              },"
-            fi
+            # 파일 목록 확인
+            echo "업로드된 파일 목록 (타임스탬프 폴더):"
+            ls -la $MAIN_DIR/$TIMESTAMP/
             
-            # .env.production 정보 수집
-            if [ -f ".env.production" ]; then
-              ENV_PROD_SIZE=$(stat -c%s ".env.production" 2>/dev/null || echo "0")
-              FILES_JSON="${FILES_JSON}
-              {
-                \"file_name\": \".env.production\",
-                \"file_path\": \"/\",
-                \"file_size\": \"${ENV_PROD_SIZE}\",
-                \"last_updated\": \"${BUILD_DATE}\"
-              },"
-            fi
-          fi
-          
-          # 마지막 쉼표 제거
-          FILES_JSON="${FILES_JSON%,}"
-          
-          # JSON 파일 생성
-          cat > cicd-gitignore-file.json << EOF
-          {
-            "build_info": {
-              "timestamp": "${TIMESTAMP}",
-              "workflow": "${GITHUB_WORKFLOW}",
-              "run_id": "${GITHUB_RUN_ID}",
-              "run_number": "${GITHUB_RUN_NUMBER}",
-              "job": "${GITHUB_JOB}",
-              "event": "${GITHUB_EVENT_NAME}",
-              "repository": "${GITHUB_REPOSITORY}",
-              "owner": "${GITHUB_REPOSITORY_OWNER}",
-              "branch": "${GITHUB_REF_NAME}",
-              "commit_hash": "${GITHUB_SHA}",
-              "short_hash": "${SHORT_COMMIT_HASH}",
-              "commit_url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}",
-              "actor": "${GITHUB_ACTOR}",
-              "build_date": "${BUILD_DATE}",
-              "runner_os": "${RUNNER_OS}"
-            },
-            "files": [${FILES_JSON}
-            ]
-          }
-          EOF
-          echo "cicd-gitignore-file.json 파일 생성 완료"
-
-      # 타임스탬프 폴더에 파일 준비
-      - name: 타임스탬프 폴더에 파일 준비
-        run: |
-          mkdir -p gitignore_files/${TIMESTAMP}
-          
-          # 프로젝트 타입에 따른 파일 복사
-          if [ "${{ env.PROJECT_TYPE }}" = "backend" ]; then
-            # application.yml 파일 복사
-            if [ -f "application.yml" ]; then
-              cp -v application.yml gitignore_files/${TIMESTAMP}/
-              echo "application.yml 파일 복사 성공"
-            fi
+            echo "업로드된 파일 목록 (루트 폴더):"
+            ls -la $MAIN_DIR/
             
-            # application-dev.yml 파일 복사
-            if [ -f "application-dev.yml" ]; then
-              cp -v application-dev.yml gitignore_files/${TIMESTAMP}/
-              echo "application-dev.yml 파일 복사 성공"
-            fi
-            
-            # application-prod.yml 파일 복사
-            if [ -f "application-prod.yml" ]; then
-              cp -v application-prod.yml gitignore_files/${TIMESTAMP}/
-              echo "application-prod.yml 파일 복사 성공"
-            fi
-          
-          elif [ "${{ env.PROJECT_TYPE }}" = "frontend" ]; then
-            # .env 파일 복사
-            if [ -f ".env" ]; then
-              cp -v .env gitignore_files/${TIMESTAMP}/
-              echo ".env 파일 복사 성공"
-            fi
-            
-            # .env.development 파일 복사
-            if [ -f ".env.development" ]; then
-              cp -v .env.development gitignore_files/${TIMESTAMP}/
-              echo ".env.development 파일 복사 성공"
-            fi
-            
-            # .env.production 파일 복사
-            if [ -f ".env.production" ]; then
-              cp -v .env.production gitignore_files/${TIMESTAMP}/
-              echo ".env.production 파일 복사 성공"
-            fi
-          fi
-          
-          # 프로젝트별 추가 파일 복사 로직은 주석으로 남겨둡니다
-          # cp -v /path/to/source/file gitignore_files/${TIMESTAMP}/ || echo "파일 복사 실패"
-          
-          cp -v cicd-gitignore-file.json gitignore_files/${TIMESTAMP}/ || echo "cicd-gitignore-file.json 파일 복사 실패"
-          
-          echo "타임스탬프 폴더 파일 준비 완료:"
-          ls -la gitignore_files/${TIMESTAMP}/
-
-      # 최신 파일 복사본 준비
-      - name: 최신 파일 복사본 준비
-        run: |
-          mkdir -p gitignore_files/latest
-          
-          # 프로젝트 타입에 따른 파일 복사
-          if [ "${{ env.PROJECT_TYPE }}" = "backend" ]; then
-            # application.yml 파일 복사
-            if [ -f "application.yml" ]; then
-              cp -v application.yml gitignore_files/latest/
-              echo "application.yml 파일 최신 폴더에 복사 성공"
-            fi
-            
-            # application-dev.yml 파일 복사
-            if [ -f "application-dev.yml" ]; then
-              cp -v application-dev.yml gitignore_files/latest/
-              echo "application-dev.yml 파일 최신 폴더에 복사 성공"
-            fi
-            
-            # application-prod.yml 파일 복사
-            if [ -f "application-prod.yml" ]; then
-              cp -v application-prod.yml gitignore_files/latest/
-              echo "application-prod.yml 파일 최신 폴더에 복사 성공"
-            fi
-          
-          elif [ "${{ env.PROJECT_TYPE }}" = "frontend" ]; then
-            # .env 파일 복사
-            if [ -f ".env" ]; then
-              cp -v .env gitignore_files/latest/
-              echo ".env 파일 최신 폴더에 복사 성공"
-            fi
-            
-            # .env.development 파일 복사
-            if [ -f ".env.development" ]; then
-              cp -v .env.development gitignore_files/latest/
-              echo ".env.development 파일 최신 폴더에 복사 성공"
-            fi
-            
-            # .env.production 파일 복사
-            if [ -f ".env.production" ]; then
-              cp -v .env.production gitignore_files/latest/
-              echo ".env.production 파일 최신 폴더에 복사 성공"
-            fi
-          fi
-          
-          # 프로젝트별 추가 파일 복사 로직은 주석으로 남겨둡니다
-          # cp -v /path/to/source/file gitignore_files/latest/ || echo "파일 복사 실패"
-          
-          cp -v cicd-gitignore-file.json gitignore_files/latest/ || echo "cicd-gitignore-file.json 파일 복사 실패"
-          
-          echo "최신 파일 폴더 준비 완료:"
-          ls -la gitignore_files/latest/
-
-      # SMB를 통해 파일 업로드
-      - name: SMB를 통해 파일 업로드
-        env:
-          SMB_USERNAME: ${{ secrets.WEB_SMB_USERNAME }}
-          SMB_PASSWORD: ${{ secrets.WEB_SMB_PASSWORD }}
-        run: |
-          # SMB 서버 정보
-          SMB_SERVER="suh-project.synology.me"
-          SMB_PORT="44445"
-          SMB_SHARE="projects"
-          SMB_BASE_PATH="/${PROJECT_NAME}/github_secret/${PROJECT_TYPE}"
-          
-          echo "SMB 서버에 연결 중... (${SMB_SERVER}:${SMB_PORT})"
-          
-          # 타임스탬프 디렉토리 생성
-          smbclient "//$SMB_SERVER/$SMB_SHARE" -p "$SMB_PORT" -U "$SMB_USERNAME%$SMB_PASSWORD" -m SMB3 -c "cd $SMB_BASE_PATH; mkdir ${TIMESTAMP}"
-          
-          # 타임스탬프 폴더에 파일 업로드
-          cd gitignore_files/${TIMESTAMP}
-          for file in *; do
-            if [ -f "$file" ]; then
-              echo "타임스탬프 폴더에 파일 업로드 중: $file (크기: $(stat -c%s "$file") 바이트)"
-              smbclient "//$SMB_SERVER/$SMB_SHARE" -p "$SMB_PORT" -U "$SMB_USERNAME%$SMB_PASSWORD" -m SMB3 -d 2 -c "cd $SMB_BASE_PATH/${TIMESTAMP}; put \"$file\"" || echo "파일 업로드 실패: $file"
-              echo "$file 업로드 완료"
-            fi
-          done
-          
-          # 루트 폴더에 최신 파일 업로드
-          cd ../../gitignore_files/latest
-          for file in *; do
-            if [ -f "$file" ]; then
-              echo "루트 폴더에 최신 파일 업로드 중: $file (크기: $(stat -c%s "$file") 바이트)"
-              smbclient "//$SMB_SERVER/$SMB_SHARE" -p "$SMB_PORT" -U "$SMB_USERNAME%$SMB_PASSWORD" -m SMB3 -d 2 -c "cd $SMB_BASE_PATH; put \"$file\"" || echo "파일 업로드 실패: $file"
-              echo "$file 업로드 완료"
-            fi
-          done
-          
-          # 업로드 성공 확인
-          cd ../..
-          echo "{\"last_updated\": \"${TIMESTAMP}\", \"commit\": \"${SHORT_COMMIT_HASH}\", \"actor\": \"${GITHUB_ACTOR}\", \"status\": \"completed\"}" > timestamp_index.json
-          smbclient "//$SMB_SERVER/$SMB_SHARE" -p "$SMB_PORT" -U "$SMB_USERNAME%$SMB_PASSWORD" -m SMB3 -c "cd $SMB_BASE_PATH; put timestamp_index.json"
-          
-          # 최종 업로드 파일 목록 확인
-          echo "타임스탬프 폴더 파일 목록 확인:"
-          smbclient "//$SMB_SERVER/$SMB_SHARE" -p "$SMB_PORT" -U "$SMB_USERNAME%$SMB_PASSWORD" -m SMB3 -c "cd $SMB_BASE_PATH/${TIMESTAMP}; ls"
-          
-          echo "루트 폴더 파일 목록 확인:"
-          smbclient "//$SMB_SERVER/$SMB_SHARE" -p "$SMB_PORT" -U "$SMB_USERNAME%$SMB_PASSWORD" -m SMB3 -c "cd $SMB_BASE_PATH; ls"
-          
-          echo "모든 파일 업로드 완료"
+            echo "모든 파일 업로드 완료"
