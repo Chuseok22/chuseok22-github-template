@@ -14,4 +14,4 @@ jobs:
         uses: crazy-max/ghaction-github-labeler@v5
         with:
           github-token: ${{ secrets.GH_TOKEN }}
-          yaml-file: .github/issue-label.yml
+          yaml-file: .github/ISSUE_TEMPLATE/issue-label.yml
