@@ -6,10 +6,6 @@
   color: 000000
   description: 문서 작업 관련
 
-- name: 버그
-  color: 5715EE
-  description: 버그 수정이 필요한 작업
-
 - name: 취소
   color: FEF2C0
   description: 추후 작업 진행 예정
