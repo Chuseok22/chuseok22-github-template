@@ -1,17 +1,23 @@
 name: "Sync GitHub Labels"
 
+permissions:
+  issues: write
+
 on:
   push:
     paths:
-      - ".github/ISSUE_TEMPLATE/issue-label.yml"
+      - .github/labels/issue-label.yml
+      - .github/workflows/sync-issue-labels.yaml
 
 jobs:
   label-sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Sync labels from config
         uses: crazy-max/ghaction-github-labeler@v5
         with:
-          github-token: ${{ secrets.GH_TOKEN }}
-          yaml-file: .github/ISSUE_TEMPLATE/issue-label.yml
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          yaml-file: .github/labels/issue-label.yml
