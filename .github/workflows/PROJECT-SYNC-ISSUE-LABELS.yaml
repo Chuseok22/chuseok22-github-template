@@ -1,4 +1,4 @@
-name: "Sync GitHub Labels"
+name: "PROJECT-SYNC-GITHUB-LABELS"
 
 on:
   push:

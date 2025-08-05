@@ -34,7 +34,7 @@
 #
 # ===================================================================
 
-name: 프로젝트 설정 파일 관리
+name: PROJECT-CONFIG-SYNOLOGY-AUTO-UPLOAD
 
 on:
   push:
