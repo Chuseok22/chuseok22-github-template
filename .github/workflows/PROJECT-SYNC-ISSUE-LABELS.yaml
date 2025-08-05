@@ -1,9 +1,10 @@
 name: "PROJECT-SYNC-GITHUB-LABELS"
 
 on:
+  workflow_dispatch:
   push:
     paths:
-      - ".github/ISSUE_TEMPLATE/issue-label.yml"
+      - '.github/ISSUE_TEMPLATE/issue-label.yml'
 
 jobs:
   label-sync:
@@ -14,4 +15,4 @@ jobs:
         uses: crazy-max/ghaction-github-labeler@v5
         with:
           github-token: ${{ secrets.REPOSITORY_TOKEN }}
-          yaml-file: .github/issue-label.yml
+          yaml-file: .github/ISSUE_TEMPLATE/issue-label.yml
