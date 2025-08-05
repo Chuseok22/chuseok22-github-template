@@ -6,17 +6,17 @@ on:
     paths:
       - '.github/ISSUE_TEMPLATE/issue-label.yml'
 
-  permissions:
-    issues: write
-    contents: read
+permissions:
+  issues: write
+  contents: read
 
-  jobs:
-    label-sync:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v4
-        - name: Sync labels from config
-          uses: crazy-max/ghaction-github-labeler@v5
-          with:
-            github-token: ${{ secrets.GITHUB_TOKEN }}
-            yaml-file: .github/ISSUE_TEMPLATE/issue-label.yml
+jobs:
+  label-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sync labels from config
+        uses: crazy-max/ghaction-github-labeler@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          yaml-file: .github/ISSUE_TEMPLATE/issue-label.yml
