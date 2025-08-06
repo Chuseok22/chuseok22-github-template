@@ -1,11 +1,25 @@
 {
   "metadata": {
-    "lastUpdated": "2025-08-06T12:32:08Z",
-    "currentVersion": "1.2.6",
+    "lastUpdated": "2025-08-06T12:53:41Z",
+    "currentVersion": "1.2.7",
     "projectType": "react-native-expo",
-    "totalReleases": 2
+    "totalReleases": 3
   },
   "releases": [
+    {
+      "version": "1.2.7",
+      "project_type": "react-native-expo",
+      "date": "2025-08-06",
+      "pr_number": 7,
+      "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\nChores\\n\\nExpo 앱 버전이 1.2.7로 업데이트되었습니다.\\n내부 워크플로우에서 인증 토큰이 변경되었습니다.\\n버전 및 메타데이터 정보가 최신으로 갱신되었습니다.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"unstable\",\n  \"merged_by\": null,\n  \"comments\": 1,\n  \"review_comments\": 1,\n  \"maintainer_can_modify\": false,\n  \"commits\": 2,\n  \"additions\": 7,\n  \"deletions\": 7,\n  \"changed_files\": 3\n}",
+      "parsed_changes": {
+        "chores": [
+          "Expo 앱 버전이 1.2.7로 업데이트되었습니다.",
+          "내부 워크플로우에서 인증 토큰이 변경되었습니다.",
+          "버전 및 메타데이터 정보가 최신으로 갱신되었습니다."
+        ]
+      }
+    },
     {
       "version": "1.2.6",
       "project_type": "react-native-expo",
