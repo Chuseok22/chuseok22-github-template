@@ -20,50 +20,25 @@
 
 set -e
 
-# 색상 정의
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# 로그 함수 (GitHub Actions 호환)
-log_info() {
-    if [ -n "$GITHUB_ACTIONS" ]; then
-        echo "[INFO] $1"
-    else
-        echo -e "${BLUE}[INFO]${NC} $1"
-    fi
+# 간단한 로그 함수
+echo_info() {
+    echo "========================="
+    echo "$1"
+    echo "========================="
 }
 
-log_success() {
-    if [ -n "$GITHUB_ACTIONS" ]; then
-        echo "[SUCCESS] $1"
-    else
-        echo -e "${GREEN}[SUCCESS]${NC} $1"
-    fi
+echo_success() {
+    echo "✅ $1"
 }
 
-log_warning() {
-    if [ -n "$GITHUB_ACTIONS" ]; then
-        echo "[WARNING] $1"
-    else
-        echo -e "${YELLOW}[WARNING]${NC} $1"
-    fi
-}
-
-log_error() {
-    if [ -n "$GITHUB_ACTIONS" ]; then
-        echo "[ERROR] $1"
-    else
-        echo -e "${RED}[ERROR]${NC} $1"
-    fi
+echo_error() {
+    echo "❌ $1"
 }
 
 # version.yml에서 설정 읽기
 read_version_config() {
     if [ ! -f "version.yml" ]; then
-        log_error "version.yml 파일을 찾을 수 없습니다!"
+        echo_error "version.yml 파일을 찾을 수 없습니다!"
         exit 1
     fi
     
@@ -100,16 +75,10 @@ read_version_config() {
         fi
     fi
     
-    if [ -n "$GITHUB_ACTIONS" ]; then
-        # GitHub Actions에서는 stderr로 로그 출력
-        echo "[INFO] 프로젝트 타입: $PROJECT_TYPE" >&2
-        echo "[INFO] 버전 파일: $VERSION_FILE" >&2
-        echo "[INFO] 현재 버전: $CURRENT_VERSION" >&2
-    else
-        log_info "프로젝트 타입: $PROJECT_TYPE"
-        log_info "버전 파일: $VERSION_FILE"
-        log_info "현재 버전: $CURRENT_VERSION"
-    fi
+    echo_info "프로젝트 정보"
+    echo "프로젝트 타입: $PROJECT_TYPE"
+    echo "버전 파일: $VERSION_FILE"  
+    echo "현재 버전: $CURRENT_VERSION"
 }
 
 # 실제 프로젝트 파일에서 버전 추출
@@ -120,9 +89,7 @@ get_version_from_project_file() {
     fi
     
     if [ ! -f "$VERSION_FILE" ]; then
-        if [ -z "$GITHUB_ACTIONS" ]; then
-            log_warning "$VERSION_FILE 파일을 찾을 수 없습니다. version.yml의 버전을 사용합니다."
-        fi
+        echo "⚠️ $VERSION_FILE 파일을 찾을 수 없습니다. version.yml의 버전을 사용합니다."
         echo "$CURRENT_VERSION"
         return
     fi
@@ -201,7 +168,7 @@ update_react_native_android_build() {
         if grep -q "versionName" "$android_build_file"; then
             sed -i.bak "s/versionName \".*\"/versionName \"$new_version\"/" "$android_build_file"
             rm -f "${android_build_file}.bak"
-            log_info "Android versionName 업데이트: $new_version"
+            echo "📱 Android versionName 업데이트: $new_version"
         fi
         
         # versionCode 증가 (옵션)
@@ -210,7 +177,7 @@ update_react_native_android_build() {
             new_code=$((current_code + 1))
             sed -i.bak "s/versionCode $current_code/versionCode $new_code/" "$android_build_file"
             rm -f "${android_build_file}.bak"
-            log_info "Android versionCode 증가: $current_code → $new_code"
+            echo "📱 Android versionCode 증가: $current_code → $new_code"
         fi
     fi
 }
@@ -226,7 +193,7 @@ update_react_native_ios_version() {
                 # CFBundleShortVersionString 키 다음 줄의 string 값 업데이트
                 sed -i.bak '/CFBundleShortVersionString/{n;s/<string>[^<]*<\/string>/<string>'$new_version'<\/string>/;}' "$plist_file"
                 rm -f "${plist_file}.bak"
-                log_info "iOS 버전 업데이트: $plist_file"
+                echo "🍎 iOS 버전 업데이트: $plist_file"
             fi
         fi
     done
@@ -248,7 +215,7 @@ update_project_file() {
     fi
     
     if [ ! -f "$VERSION_FILE" ]; then
-        log_warning "$VERSION_FILE 파일을 찾을 수 없습니다. version.yml만 업데이트합니다."
+        echo "⚠️ $VERSION_FILE 파일을 찾을 수 없습니다. version.yml만 업데이트합니다."
         update_version_yml "$new_version"
         return
     fi
@@ -293,7 +260,7 @@ update_project_file() {
             fi
             
             # React Native 특별 처리
-            log_info "React Native 플랫폼별 버전 업데이트 중..."
+            echo_info "React Native 플랫폼별 버전 업데이트"
             update_react_native_android_build "$new_version"
             update_react_native_ios_version "$new_version"
             ;;
@@ -336,53 +303,47 @@ main() {
     case "$command" in
         "get")
             local version=$(get_version_from_project_file)
-            if [ -n "$GITHUB_ACTIONS" ]; then
-                # GitHub Actions에서는 로그와 결과를 분리
-                echo "[INFO] 현재 버전: $version" >&2
-                echo "$version"
-            else
-                log_info "현재 버전: $version"
-                echo "$version"
-            fi
+            echo_success "현재 버전: $version"
+            echo "$version"
             ;;
         "increment")
             local current_version=$(get_version_from_project_file)
             if ! validate_version "$current_version"; then
-                log_error "잘못된 버전 형식: $current_version"
+                echo_error "잘못된 버전 형식: $current_version"
                 exit 1
             fi
             
             local new_version=$(increment_patch_version "$current_version")
-            log_info "버전 업데이트: $current_version -> $new_version"
+            echo_info "버전 업데이트: $current_version → $new_version"
             
             update_project_file "$new_version"
-            log_success "버전 업데이트 완료: $new_version"
+            echo_success "버전 업데이트 완료: $new_version"
             echo "$new_version"
             ;;
         "set")
             local new_version=$2
             if [ -z "$new_version" ]; then
-                log_error "새 버전을 지정해주세요: ./version-manager.sh set 1.2.3"
+                echo_error "새 버전을 지정해주세요: ./version-manager.sh set 1.2.3"
                 exit 1
             fi
             
             if ! validate_version "$new_version"; then
-                log_error "잘못된 버전 형식: $new_version (x.x.x 형식이어야 합니다)"
+                echo_error "잘못된 버전 형식: $new_version (x.x.x 형식이어야 합니다)"
                 exit 1
             fi
             
-            log_info "버전 설정: $new_version"
+            echo_info "버전 설정: $new_version"
             update_project_file "$new_version"
-            log_success "버전 설정 완료: $new_version"
+            echo_success "버전 설정 완료: $new_version"
             echo "$new_version"
             ;;
         "validate")
             local version=${2:-$(get_version_from_project_file)}
             if validate_version "$version"; then
-                log_success "유효한 버전 형식입니다: $version"
+                echo_success "유효한 버전 형식입니다: $version"
                 exit 0
             else
-                log_error "잘못된 버전 형식입니다: $version"
+                echo_error "잘못된 버전 형식입니다: $version"
                 exit 1
             fi
             ;;
