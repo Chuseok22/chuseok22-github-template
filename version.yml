@@ -15,7 +15,8 @@
 # - minor/major: 수동으로 직접 수정 필요
 #
 # 주의사항:
-# - 이 파일은 GitHub Actions 워크플로우에서 사용되며, 직접 수정하지 마세요.
+# - project_type만 최초 1회 지정 후, 직접 수정하지 마세요! (수정 시 예기치 않은 오류 발생 가능)
+# - 이 파일은 GitHub Actions 워크플로우에서 사용 및 자동으로 관리됩니다.
 # ===================================================================
 # 공식 GitHub 레포지토리:
 # - https://github.com/Cassiiopeia/suh-github-template
