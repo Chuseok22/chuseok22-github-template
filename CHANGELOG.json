@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "lastUpdated": "2025-08-06T12:08:03Z",
+    "currentVersion": "1.2.4",
+    "projectType": "react-native-expo",
+    "totalReleases": 1
+  },
+  "releases": [
+    {
+      "version": "1.2.4",
+      "project_type": "react-native-expo",
+      "date": "2025-08-06",
+      "pr_number": 5,
+      "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\nChores\\n\\n앱 버전이 1.2.2에서 1.2.4로 업데이트되었습니다.\\n버전 관련 메타데이터가 최신 정보로 갱신되었습니다.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"unstable\",\n  \"merged_by\": null,\n  \"comments\": 1,\n  \"review_comments\": 1,\n  \"maintainer_can_modify\": false,\n  \"commits\": 2,\n  \"additions\": 3,\n  \"deletions\": 3,\n  \"changed_files\": 2\n}",
+      "parsed_changes": {
+        "chores": [
+          "앱 버전이 1.2.2에서 1.2.4로 업데이트되었습니다.",
+          "버전 관련 메타데이터가 최신 정보로 갱신되었습니다."
+        ]
+      }
+    }
+  ]
+}
