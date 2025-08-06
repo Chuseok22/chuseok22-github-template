@@ -1,22 +1,31 @@
 # ===================================================================
-# 스프링부트 프로젝트 빌드 테스트 워크플로우
+# 범용 프로젝트 빌드 테스트 워크플로우
 # ===================================================================
 #
-# 이 워크플로우는 PR이 test 브랜치로 생성될 때 Spring Boot 프로젝트 빌드를 
-# 테스트하고 결과를 PR에 댓글로 작성합니다.
+# 이 워크플로우는 PR이 test 브랜치로 생성될 때 프로젝트 타입에 따라
+# 적절한 빌드 테스트를 수행하고 결과를 PR에 댓글로 작성합니다.
+#
+# 지원 프로젝트 타입:
+# - spring: Spring Boot 프로젝트 (Gradle)
+# - flutter: Flutter 프로젝트
+# - react: React 웹 프로젝트 (npm/yarn)
+# - react-native: React Native 모바일 프로젝트 (npm/yarn + Android/iOS)
+# - node: Node.js 프로젝트 (npm/yarn)
+# - python: Python 프로젝트
 #
 # 사용 방법:
-# 1. 이 파일을 .github/workflows/ 디렉토리에 저장하세요.
-# 2. 필요한 GitHub Secrets를 설정하세요.
-# 3. 필요시 브랜치 조건이나 Java 버전을 수정하세요.
+# 1. version.yml에서 project_type을 설정하세요
+# 2. 필요한 GitHub Secrets를 설정하세요
+# 3. 필요시 브랜치 조건을 수정하세요
 #
-# 필수 GitHub Secrets:
+# 필수 GitHub Secrets (프로젝트 타입별):
+# Spring Boot:
 # - APPLICATION_PROD_YML: application-prod.yml 파일 내용
-# - VERTEX_SA_KEY: (선택) 서비스 계정 키 파일 내용
+# - SA_KEY: (선택) 서비스 계정 키 파일 내용
 #
 # ===================================================================
 
-name: 스프링부트 빌드 테스트
+name: 범용 프로젝트 빌드 테스트
 
 on:
   pull_request:

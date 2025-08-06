@@ -45,7 +45,7 @@ on:
 # 프로젝트 설정 변수 - 이 부분을 프로젝트에 맞게 수정하세요
 env:
   PROJECT_NAME: "your_project_name" # 여기에 프로젝트 이름을 입력하세요
-  PROJECT_TYPE: "backend"           # frontend 또는 backend 중 선택하세요
+  PROJECT_TYPE: "backend"           # frontend, backend 또는 version.yml에서 자동 감지
 
 jobs:
   upload-files:

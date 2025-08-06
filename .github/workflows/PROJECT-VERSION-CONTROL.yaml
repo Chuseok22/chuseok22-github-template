@@ -1,0 +1,179 @@
+# ===================================================================
+# 범용 프로젝트 버전 자동 관리 워크플로우
+# ===================================================================
+#
+# 이 워크플로우는 다양한 프로젝트 타입(Spring, Flutter, React, Node.js 등)에서
+# main 브랜치에 푸시될 때마다 patch 버전을 자동으로 증가시킵니다.
+#
+# 지원 프로젝트 타입:
+# - spring: build.gradle의 version 관리
+# - flutter: pubspec.yaml의 version 관리
+# - react: package.json의 version 관리
+# - react-native: package.json + Android/iOS 플랫폼별 버전 관리
+# - node: package.json의 version 관리
+# - python: pyproject.toml의 version 관리
+# - template: version.yml의 version 관리
+#
+# 사용 방법:
+# 1. version.yml 파일에서 project_type을 설정하세요
+# 2. 해당 프로젝트의 버전 파일이 올바른 위치에 있는지 확인하세요
+# 3. main 브랜치에 푸시하면 자동으로 patch 버전이 증가합니다
+#
+# ===================================================================
+
+name: PROJECT-VERSION-CONTROL
+
+on:
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - 'CHANGELOG.md'
+      - 'CHANGELOG.json'
+      - 'version.yml'  # 무한 루프 방지
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  version-bump:
+    name: 버전 자동 증가
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: 버전 관리 스크립트 권한 설정
+        run: |
+          chmod +x scripts/version-manager.sh
+          echo "버전 관리 스크립트 권한 설정 완료"
+
+      - name: 현재 버전 확인
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(./scripts/version-manager.sh get)
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "현재 버전: $CURRENT_VERSION"
+
+      - name: 새 버전 계산 및 업데이트 (patch 버전 증가)
+        id: version
+        run: |
+          echo "🔄 버전 자동 증가 시작..."
+          NEW_VERSION=$(./scripts/version-manager.sh increment)
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "✅ 새 버전: $NEW_VERSION"
+
+      - name: 프로젝트 타입 확인
+        id: project_info
+        run: |
+          if [ -f "version.yml" ]; then
+            PROJECT_TYPE=$(grep "^project_type:" version.yml | sed 's/project_type: *"\([^"]*\)".*/\1/')
+            echo "project_type=$PROJECT_TYPE" >> $GITHUB_OUTPUT
+            echo "프로젝트 타입: $PROJECT_TYPE"
+          else
+            echo "project_type=unknown" >> $GITHUB_OUTPUT
+            echo "⚠️ version.yml 파일을 찾을 수 없습니다."
+          fi
+
+      - name: 변경사항 확인 및 커밋
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # 변경된 파일들 확인
+          CHANGED_FILES=""
+          PROJECT_TYPE="${{ steps.project_info.outputs.project_type }}"
+          
+          # version.yml은 항상 포함
+          if [ -f "version.yml" ]; then
+            CHANGED_FILES="version.yml"
+          fi
+          
+                        # 프로젝트 타입별 파일 추가
+          case "$PROJECT_TYPE" in
+            "spring")
+              if [ -f "build.gradle" ]; then
+                CHANGED_FILES="$CHANGED_FILES build.gradle"
+              fi
+              ;;
+            "flutter")
+              if [ -f "pubspec.yaml" ]; then
+                CHANGED_FILES="$CHANGED_FILES pubspec.yaml"
+              fi
+              ;;
+            "react"|"node")
+              if [ -f "package.json" ]; then
+                CHANGED_FILES="$CHANGED_FILES package.json"
+              fi
+              ;;
+            "react-native")
+              if [ -f "package.json" ]; then
+                CHANGED_FILES="$CHANGED_FILES package.json"
+              fi
+              # React Native 플랫폼별 파일들도 추가
+              if [ -f "android/app/build.gradle" ]; then
+                CHANGED_FILES="$CHANGED_FILES android/app/build.gradle"
+              fi
+              # iOS Info.plist 파일들 찾기
+              find ios -name "Info.plist" -type f 2>/dev/null | while read plist_file; do
+                CHANGED_FILES="$CHANGED_FILES $plist_file"
+              done
+              ;;
+            "python")
+              if [ -f "pyproject.toml" ]; then
+                CHANGED_FILES="$CHANGED_FILES pyproject.toml"
+              fi
+              ;;
+          esac
+          
+          echo "변경된 파일들: $CHANGED_FILES"
+          
+          # 파일들 스테이징
+          if [ -n "$CHANGED_FILES" ]; then
+            git add $CHANGED_FILES
+            
+            # 변경사항이 있는지 확인
+            if git diff --staged --quiet; then
+              echo "📝 변경사항이 없습니다."
+            else
+              # 커밋 메시지 생성
+              REPO_NAME=$(basename "${{ github.repository }}")
+              COMMIT_MSG="$REPO_NAME 버전 정보 관리 : chore: 버전 ${{ steps.version.outputs.new_version }} [skip ci]"
+              
+              git commit -m "$COMMIT_MSG" || exit 0
+              git push
+              echo "✅ 버전 업데이트 커밋 완료"
+            fi
+          else
+            echo "⚠️ 커밋할 파일을 찾을 수 없습니다."
+          fi
+
+      - name: Git 태그 생성
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          TAG_NAME="v$NEW_VERSION"
+          
+          # 태그가 이미 존재하는지 확인
+          if git tag -l | grep -q "^$TAG_NAME$"; then
+            echo "⚠️ 태그 $TAG_NAME이 이미 존재합니다."
+          else
+            git tag "$TAG_NAME"
+            git push origin "$TAG_NAME"
+            echo "✅ Git 태그 생성 완료: $TAG_NAME"
+          fi
+
+      - name: 버전 업데이트 완료 알림
+        run: |
+          echo "🎉 버전 업데이트 완료!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📋 업데이트 정보:"
+          echo "  • 이전 버전: ${{ steps.current_version.outputs.current_version }}"
+          echo "  • 새 버전: ${{ steps.version.outputs.new_version }}"
+          echo "  • 프로젝트 타입: ${{ steps.project_info.outputs.project_type }}"
+          echo "  • 커밋: ${{ github.sha }}"
+          echo "  • 브랜치: ${{ github.ref_name }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
