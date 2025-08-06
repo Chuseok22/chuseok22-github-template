@@ -279,11 +279,13 @@ update_project_file() {
     if [ "$PROJECT_TYPE" = "react-native" ]; then
         echo_info "React Native Bare 프로젝트 업데이트"
         update_react_native_bare "$new_version"
+        # version.yml도 프로젝트 실제 버전과 동기화
         update_version_yml "$new_version"
         return
     elif [ "$PROJECT_TYPE" = "react-native-expo" ]; then
-        echo_info "React Native Expo 프로젝트 업데이트"
+        echo_info "React Native Expo 프로젝트 업데이트" 
         update_react_native_expo "$new_version"
+        # version.yml도 프로젝트 실제 버전과 동기화
         update_version_yml "$new_version"
         return
     fi
@@ -364,6 +366,7 @@ main() {
             echo "$version"
             ;;
         "increment")
+            # 실제 프로젝트 파일에서 현재 버전 가져오기
             local current_version=$(get_version_from_project_file)
             if ! validate_version "$current_version"; then
                 echo_error "잘못된 버전 형식: $current_version"
@@ -373,6 +376,7 @@ main() {
             local new_version=$(increment_patch_version "$current_version")
             echo_info "버전 업데이트: $current_version → $new_version"
             
+            # 프로젝트 파일과 version.yml 모두 업데이트
             update_project_file "$new_version"
             echo_success "버전 업데이트 완료: $new_version"
             echo "$new_version"
