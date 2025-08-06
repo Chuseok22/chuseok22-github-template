@@ -16,10 +16,9 @@
 #
 # ===================================================================
 
-version: "1.5.3"
-project_type: "spring"  # spring, flutter, react, react-native, node, python, template 등
-version_file: "version.yml"  # 버전 정보가 저장된 파일 경로
-
+version: "1.5.4"
+project_type: "spring" # spring, flutter, react, react-native, node, python, template 등
+version_file: "version.yml" # 버전 정보가 저장된 파일 경로
 # 프로젝트 타입별 버전 파일 매핑
 # 실제 프로젝트에서는 해당하는 타입의 설정만 사용
 project_configs:
@@ -27,42 +26,35 @@ project_configs:
     version_file: "build.gradle"
     version_pattern: "version = '"
     version_format: "version = '{version}'"
-  
   flutter:
-    version_file: "pubspec.yaml" 
+    version_file: "pubspec.yaml"
     version_pattern: "version: "
     version_format: "version: {version}+1"
-  
   react:
     version_file: "package.json"
     version_pattern: '"version":'
     version_format: '"version": "{version}"'
-  
   react-native:
     version_file: "package.json"
     version_pattern: '"version":'
     version_format: '"version": "{version}"'
-    build_number_file: "android/app/build.gradle"  # Android 빌드 번호
-    ios_version_file: "ios/*/Info.plist"  # iOS 버전 파일
-  
+    build_number_file: "android/app/build.gradle" # Android 빌드 번호
+    ios_version_file: "ios/*/Info.plist" # iOS 버전 파일
   node:
     version_file: "package.json"
     version_pattern: '"version":'
     version_format: '"version": "{version}"'
-    
   python:
     version_file: "pyproject.toml"
     version_pattern: "version = "
     version_format: 'version = "{version}"'
-    
   template:
     version_file: "version.yml"
     version_pattern: "version: "
     version_format: 'version: "1.5.3"'
-
 # 메타데이터
 metadata:
-  last_updated: "2025-08-06 20:10:51"
-  last_updated_by: "cassiiopeia"
-  auto_increment: true  # patch 버전 자동 증가 여부
-  changelog_enabled: true  # 체인지로그 자동 생성 여부
+  last_updated: "2025-08-06 11:11:54"
+  last_updated_by: "Cassiiopeia"
+  auto_increment: true # patch 버전 자동 증가 여부
+  changelog_enabled: true # 체인지로그 자동 생성 여부
