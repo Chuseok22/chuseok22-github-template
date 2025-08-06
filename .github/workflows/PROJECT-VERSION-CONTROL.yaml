@@ -120,6 +120,11 @@ jobs:
                 CHANGED_FILES="$CHANGED_FILES $plist_file"
               done
               ;;
+            "react-native-expo")
+              if [ -f "app.json" ]; then
+                CHANGED_FILES="$CHANGED_FILES app.json"
+              fi
+              ;;
             "python")
               if [ -f "pyproject.toml" ]; then
                 CHANGED_FILES="$CHANGED_FILES pyproject.toml"

@@ -2,7 +2,7 @@
   "expo": {
     "name": "React Native Expo Template",
     "slug": "rn-expo-template",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
