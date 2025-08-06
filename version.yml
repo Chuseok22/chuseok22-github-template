@@ -16,7 +16,7 @@
 #
 # ===================================================================
 
-version: "1.2.1"
+version: "1.2.2"
 project_type: "react-native-expo" # spring, flutter, react, react-native, react-native-expo, node, template 등
 version_file: "version.yml" # 버전 정보가 저장된 파일 경로
 # 프로젝트 타입별 버전 파일 매핑
@@ -35,11 +35,10 @@ project_configs:
     version_pattern: '"version":'
     version_format: '"version": "{version}"'
   react-native:
-    version_file: "ios/*/Info.plist"  # iOS가 우선
+    version_file: "ios/*/Info.plist" # iOS가 우선
     android_file: "android/app/build.gradle"
     version_pattern: "CFBundleShortVersionString"
     version_format: 'CFBundleShortVersionString'
-  
   react-native-expo:
     version_file: "app.json"
     version_pattern: '"expo".*"version":'
