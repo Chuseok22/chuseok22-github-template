@@ -16,7 +16,7 @@
 #
 # ===================================================================
 
-version: "1.2.1"
+version: "1.2.2"
 project_type: "react-native-expo" # spring, flutter, react, react-native, react-native-expo, node, template 등
 version_file: "version.yml" # 버전 정보가 저장된 파일 경로
 # 프로젝트 타입별 버전 파일 매핑
@@ -35,11 +35,10 @@ project_configs:
     version_pattern: '"version":'
     version_format: '"version": "{version}"'
   react-native:
-    version_file: "ios/*/Info.plist"  # iOS가 우선
+    version_file: "ios/*/Info.plist" # iOS가 우선
     android_file: "android/app/build.gradle"
     version_pattern: "CFBundleShortVersionString"
     version_format: 'CFBundleShortVersionString'
-  
   react-native-expo:
     version_file: "app.json"
     version_pattern: '"expo".*"version":'
@@ -54,7 +53,7 @@ project_configs:
     version_format: 'version: "1.2.1"'
 # 메타데이터
 metadata:
-  last_updated: "2025-08-06 20:28:09"
-  last_updated_by: "cassiiopeia"
+  last_updated: "2025-08-06 11:29:49"
+  last_updated_by: "Cassiiopeia"
   auto_increment: true # patch 버전 자동 증가 여부
   changelog_enabled: true # 체인지로그 자동 생성 여부
