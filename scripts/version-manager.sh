@@ -68,8 +68,9 @@ read_version_config() {
             case "$PROJECT_TYPE" in
                 "spring") VERSION_FILE="build.gradle" ;;
                 "flutter") VERSION_FILE="pubspec.yaml" ;;
-                "react"|"react-native"|"node") VERSION_FILE="package.json" ;;
-                "python") VERSION_FILE="pyproject.toml" ;;
+                "react"|"node") VERSION_FILE="package.json" ;;
+                "react-native") VERSION_FILE="ios/*/Info.plist" ;;
+                "react-native-expo") VERSION_FILE="app.json" ;;
                 *) VERSION_FILE="version.yml" ;;
             esac
         fi
@@ -86,6 +87,30 @@ get_version_from_project_file() {
     if [ "$PROJECT_TYPE" = "template" ]; then
         echo "$CURRENT_VERSION"
         return
+    fi
+    
+    # React Native의 경우 특별 처리
+    if [ "$PROJECT_TYPE" = "react-native" ]; then
+        # 직접 iOS/Android 파일에서 버전 추출
+        IOS_PLIST=$(find ios -name "Info.plist" -type f | head -1)
+        if [ -f "$IOS_PLIST" ]; then
+            if command -v /usr/libexec/PlistBuddy >/dev/null 2>&1; then
+                /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$IOS_PLIST" 2>/dev/null || echo "$CURRENT_VERSION"
+            else
+                grep -A1 "CFBundleShortVersionString" "$IOS_PLIST" | tail -1 | grep -oP '>\K[^<]+' 2>/dev/null || echo "$CURRENT_VERSION"
+            fi
+            return
+        else
+            # iOS 없으면 Android 확인
+            ANDROID_BUILD="android/app/build.gradle"
+            if [ -f "$ANDROID_BUILD" ]; then
+                grep -oP 'versionName *"\K[^"]+' "$ANDROID_BUILD" | head -1 || echo "$CURRENT_VERSION"
+                return
+            else
+                echo "$CURRENT_VERSION"
+                return
+            fi
+        fi
     fi
     
     if [ ! -f "$VERSION_FILE" ]; then
@@ -115,7 +140,7 @@ get_version_from_project_file() {
                 echo "$CURRENT_VERSION"
             fi
             ;;
-        "react"|"react-native"|"node")
+        "react"|"node")
             # package.json에서 버전 추출
             if command -v jq >/dev/null 2>&1; then
                 jq -r '.version' "$VERSION_FILE" 2>/dev/null || echo "$CURRENT_VERSION"
@@ -123,14 +148,34 @@ get_version_from_project_file() {
                 grep '"version":' "$VERSION_FILE" | sed 's/.*"version": *"\([^"]*\)".*/\1/' | head -1 || echo "$CURRENT_VERSION"
             fi
             ;;
-        "python")
-            # pyproject.toml에서 버전 추출
-            if grep -q 'version = ' "$VERSION_FILE"; then
-                grep 'version = ' "$VERSION_FILE" | sed 's/.*version = *"\([^"]*\)".*/\1/' | head -1
+        "react-native")
+            # iOS Info.plist 우선 확인
+            IOS_PLIST=$(find ios -name "Info.plist" -type f | head -1)
+            if [ -f "$IOS_PLIST" ]; then
+                if command -v /usr/libexec/PlistBuddy >/dev/null 2>&1; then
+                    /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$IOS_PLIST" 2>/dev/null || echo "$CURRENT_VERSION"
+                else
+                    grep -A1 "CFBundleShortVersionString" "$IOS_PLIST" | tail -1 | grep -oP '>\K[^<]+' 2>/dev/null || echo "$CURRENT_VERSION"
+                fi
             else
-                echo "$CURRENT_VERSION"
+                # iOS 없으면 Android 확인
+                ANDROID_BUILD="android/app/build.gradle"
+                if [ -f "$ANDROID_BUILD" ]; then
+                    grep -oP 'versionName *"\K[^"]+' "$ANDROID_BUILD" | head -1 || echo "$CURRENT_VERSION"
+                else
+                    echo "$CURRENT_VERSION"
+                fi
             fi
             ;;
+        "react-native-expo")
+            # app.json에서 expo.version 추출
+            if command -v jq >/dev/null 2>&1; then
+                jq -r '.expo.version' "$VERSION_FILE" 2>/dev/null || echo "$CURRENT_VERSION"
+            else
+                grep -oP '"version": *"\K[^"]+' "$VERSION_FILE" || echo "$CURRENT_VERSION"
+            fi
+            ;;
+
         *)
             echo "$CURRENT_VERSION"
             ;;
@@ -158,17 +203,31 @@ increment_patch_version() {
     echo "${major}.${minor}.${patch}"
 }
 
-# React Native 특별 처리 함수들
-update_react_native_android_build() {
+# React Native Bare 업데이트 함수
+update_react_native_bare() {
     local new_version=$1
-    local android_build_file="android/app/build.gradle"
     
+    # iOS 우선 업데이트
+    echo "🍎 iOS 버전 업데이트 중..."
+    find ios -name "Info.plist" -type f | while read plist_file; do
+        if [ -f "$plist_file" ]; then
+            if grep -q "CFBundleShortVersionString" "$plist_file"; then
+                sed -i.bak '/CFBundleShortVersionString/{n;s/<string>[^<]*<\/string>/<string>'$new_version'<\/string>/;}' "$plist_file"
+                rm -f "${plist_file}.bak"
+                echo "  ✅ $plist_file"
+            fi
+        fi
+    done
+    
+    # Android 업데이트
+    echo "📱 Android 버전 업데이트 중..."
+    local android_build_file="android/app/build.gradle"
     if [ -f "$android_build_file" ]; then
         # versionName 업데이트
         if grep -q "versionName" "$android_build_file"; then
             sed -i.bak "s/versionName \".*\"/versionName \"$new_version\"/" "$android_build_file"
             rm -f "${android_build_file}.bak"
-            echo "📱 Android versionName 업데이트: $new_version"
+            echo "  ✅ versionName: $new_version"
         fi
         
         # versionCode 증가 (옵션)
@@ -177,26 +236,28 @@ update_react_native_android_build() {
             new_code=$((current_code + 1))
             sed -i.bak "s/versionCode $current_code/versionCode $new_code/" "$android_build_file"
             rm -f "${android_build_file}.bak"
-            echo "📱 Android versionCode 증가: $current_code → $new_code"
+            echo "  ✅ versionCode: $current_code → $new_code"
         fi
     fi
 }
 
-update_react_native_ios_version() {
+# React Native Expo 업데이트 함수
+update_react_native_expo() {
     local new_version=$1
+    local app_json="app.json"
     
-    # iOS Info.plist 파일들 찾기
-    find ios -name "Info.plist" -type f | while read plist_file; do
-        if [ -f "$plist_file" ]; then
-            # CFBundleShortVersionString 업데이트
-            if grep -q "CFBundleShortVersionString" "$plist_file"; then
-                # CFBundleShortVersionString 키 다음 줄의 string 값 업데이트
-                sed -i.bak '/CFBundleShortVersionString/{n;s/<string>[^<]*<\/string>/<string>'$new_version'<\/string>/;}' "$plist_file"
-                rm -f "${plist_file}.bak"
-                echo "🍎 iOS 버전 업데이트: $plist_file"
-            fi
+    echo "📱 Expo 버전 업데이트 중..."
+    if [ -f "$app_json" ]; then
+        if command -v jq >/dev/null 2>&1; then
+            jq ".expo.version = \"$new_version\"" "$app_json" > tmp.json && mv tmp.json "$app_json"
+            echo "  ✅ expo.version: $new_version"
+        else
+            # jq 없는 경우 sed 사용
+            sed -i.bak 's/"version": *"[^"]*"/"version": "'$new_version'"/' "$app_json"
+            rm -f "${app_json}.bak"
+            echo "  ✅ expo.version: $new_version (sed)"
         fi
-    done
+    fi
 }
 
 # 프로젝트 파일의 버전 업데이트
@@ -211,6 +272,19 @@ update_project_file() {
             sed -i.bak "s/version: \".*\"/version: \"$new_version\"/" version.yml
             rm -f version.yml.bak
         fi
+        return
+    fi
+    
+    # React Native 케이스는 특별 처리
+    if [ "$PROJECT_TYPE" = "react-native" ]; then
+        echo_info "React Native Bare 프로젝트 업데이트"
+        update_react_native_bare "$new_version"
+        update_version_yml "$new_version"
+        return
+    elif [ "$PROJECT_TYPE" = "react-native-expo" ]; then
+        echo_info "React Native Expo 프로젝트 업데이트"
+        update_react_native_expo "$new_version"
+        update_version_yml "$new_version"
         return
     fi
     
@@ -250,25 +324,8 @@ update_project_file() {
                 rm -f "${VERSION_FILE}.bak"
             fi
             ;;
-        "react-native")
-            # package.json 업데이트
-            if command -v jq >/dev/null 2>&1; then
-                jq ".version = \"$new_version\"" "$VERSION_FILE" > tmp.json && mv tmp.json "$VERSION_FILE"
-            else
-                sed -i.bak "s/\"version\": *\"[^\"]*\"/\"version\": \"$new_version\"/" "$VERSION_FILE"
-                rm -f "${VERSION_FILE}.bak"
-            fi
-            
-            # React Native 특별 처리
-            echo_info "React Native 플랫폼별 버전 업데이트"
-            update_react_native_android_build "$new_version"
-            update_react_native_ios_version "$new_version"
-            ;;
-        "python")
-            # pyproject.toml 업데이트
-            sed -i.bak "s/version = \".*\"/version = \"$new_version\"/" "$VERSION_FILE"
-            rm -f "${VERSION_FILE}.bak"
-            ;;
+
+
     esac
     
     # version.yml도 함께 업데이트
