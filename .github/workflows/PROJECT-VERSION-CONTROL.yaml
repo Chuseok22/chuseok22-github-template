@@ -55,15 +55,17 @@ jobs:
       - name: 현재 버전 확인
         id: current_version
         run: |
-          CURRENT_VERSION=$(./scripts/version-manager.sh get)
+          # 버전 스크립트 실행 (stderr 로그는 GitHub Actions 로그에 표시)
+          CURRENT_VERSION=$(./scripts/version-manager.sh get 2>&1 | tail -n 1)
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-          echo "현재 버전: $CURRENT_VERSION"
+          echo "✅ 현재 버전: $CURRENT_VERSION"
 
       - name: 새 버전 계산 및 업데이트 (patch 버전 증가)
         id: version
         run: |
           echo "🔄 버전 자동 증가 시작..."
-          NEW_VERSION=$(./scripts/version-manager.sh increment)
+          # 마지막 라인만 버전 번호로 추출
+          NEW_VERSION=$(./scripts/version-manager.sh increment 2>&1 | tail -n 1)
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "✅ 새 버전: $NEW_VERSION"
 

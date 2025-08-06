@@ -27,21 +27,37 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# 로그 함수
+# 로그 함수 (GitHub Actions 호환)
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    if [ -n "$GITHUB_ACTIONS" ]; then
+        echo "[INFO] $1"
+    else
+        echo -e "${BLUE}[INFO]${NC} $1"
+    fi
 }
 
 log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    if [ -n "$GITHUB_ACTIONS" ]; then
+        echo "[SUCCESS] $1"
+    else
+        echo -e "${GREEN}[SUCCESS]${NC} $1"
+    fi
 }
 
 log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    if [ -n "$GITHUB_ACTIONS" ]; then
+        echo "[WARNING] $1"
+    else
+        echo -e "${YELLOW}[WARNING]${NC} $1"
+    fi
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    if [ -n "$GITHUB_ACTIONS" ]; then
+        echo "[ERROR] $1"
+    else
+        echo -e "${RED}[ERROR]${NC} $1"
+    fi
 }
 
 # version.yml에서 설정 읽기
@@ -84,9 +100,16 @@ read_version_config() {
         fi
     fi
     
-    log_info "프로젝트 타입: $PROJECT_TYPE"
-    log_info "버전 파일: $VERSION_FILE"
-    log_info "현재 버전: $CURRENT_VERSION"
+    if [ -n "$GITHUB_ACTIONS" ]; then
+        # GitHub Actions에서는 stderr로 로그 출력
+        echo "[INFO] 프로젝트 타입: $PROJECT_TYPE" >&2
+        echo "[INFO] 버전 파일: $VERSION_FILE" >&2
+        echo "[INFO] 현재 버전: $CURRENT_VERSION" >&2
+    else
+        log_info "프로젝트 타입: $PROJECT_TYPE"
+        log_info "버전 파일: $VERSION_FILE"
+        log_info "현재 버전: $CURRENT_VERSION"
+    fi
 }
 
 # 실제 프로젝트 파일에서 버전 추출
@@ -97,7 +120,9 @@ get_version_from_project_file() {
     fi
     
     if [ ! -f "$VERSION_FILE" ]; then
-        log_warning "$VERSION_FILE 파일을 찾을 수 없습니다. version.yml의 버전을 사용합니다."
+        if [ -z "$GITHUB_ACTIONS" ]; then
+            log_warning "$VERSION_FILE 파일을 찾을 수 없습니다. version.yml의 버전을 사용합니다."
+        fi
         echo "$CURRENT_VERSION"
         return
     fi
@@ -311,8 +336,14 @@ main() {
     case "$command" in
         "get")
             local version=$(get_version_from_project_file)
-            log_info "현재 버전: $version"
-            echo "$version"
+            if [ -n "$GITHUB_ACTIONS" ]; then
+                # GitHub Actions에서는 로그와 결과를 분리
+                echo "[INFO] 현재 버전: $version" >&2
+                echo "$version"
+            else
+                log_info "현재 버전: $version"
+                echo "$version"
+            fi
             ;;
         "increment")
             local current_version=$(get_version_from_project_file)

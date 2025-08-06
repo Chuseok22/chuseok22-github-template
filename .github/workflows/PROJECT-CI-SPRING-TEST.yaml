@@ -38,7 +38,7 @@ permissions:
 
 jobs:
   test-project-build:
-    name: 스프링부트 빌드 테스트
+    name: 범용 프로젝트 빌드 테스트
     runs-on: ubuntu-latest
 
     steps:
@@ -48,13 +48,51 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Java 설정
+      - name: 프로젝트 타입 감지
+        id: detect-project
+        run: |
+          if [ -f "version.yml" ]; then
+            PROJECT_TYPE=$(grep "^project_type:" version.yml | sed 's/project_type: *"\([^"]*\)".*/\1/')
+            echo "project_type=$PROJECT_TYPE" >> $GITHUB_OUTPUT
+            echo "✅ 감지된 프로젝트 타입: $PROJECT_TYPE"
+          else
+            # 폴백: 파일 기반 감지
+            if [ -f "build.gradle" ]; then
+              echo "project_type=spring" >> $GITHUB_OUTPUT
+              echo "✅ 감지된 프로젝트 타입: spring (build.gradle 기반)"
+            elif [ -f "package.json" ]; then
+              echo "project_type=node" >> $GITHUB_OUTPUT
+              echo "✅ 감지된 프로젝트 타입: node (package.json 기반)"
+            elif [ -f "pubspec.yaml" ]; then
+              echo "project_type=flutter" >> $GITHUB_OUTPUT
+              echo "✅ 감지된 프로젝트 타입: flutter (pubspec.yaml 기반)"
+            else
+              echo "project_type=unknown" >> $GITHUB_OUTPUT
+              echo "⚠️ 프로젝트 타입을 감지할 수 없습니다."
+            fi
+          fi
+
+      - name: Java 설정 (Spring Boot 프로젝트)
+        if: steps.detect-project.outputs.project_type == 'spring'
         id: setup-java
         uses: actions/setup-java@v4
         with:
           java-version: 17  # 프로젝트에 맞는 Java 버전 설정
           distribution: temurin
           cache: gradle
+
+      - name: Node.js 설정 (React/Node 프로젝트)
+        if: contains(fromJson('["react", "react-native", "node"]'), steps.detect-project.outputs.project_type)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Flutter 설정 (Flutter 프로젝트)
+        if: steps.detect-project.outputs.project_type == 'flutter'
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
 
       - name: Gradle 실행 권한 설정
         id: setup-gradle

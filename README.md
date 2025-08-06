@@ -193,6 +193,9 @@ android/app/build.gradle  # versionCode, versionName
 ios/[프로젝트명]/Info.plist  # CFBundleShortVersionString
 ```
 
+### Q: GitHub Actions에서 "Invalid format" 오류가 발생해요
+A: 스크립트의 ANSI 색상 코드 때문입니다. 최신 버전의 `version-manager.sh`는 GitHub Actions 환경을 자동 감지하여 색상 코드를 제거합니다.
+
 ### Q: 특정 프로젝트 타입을 추가하고 싶어요
 A: `version.yml`의 `project_configs` 섹션에 새로운 프로젝트 타입을 추가하고, `scripts/version-manager.sh`에 해당 로직을 구현하세요.
 

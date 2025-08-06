@@ -67,7 +67,7 @@ jobs:
         run: |
           # 범용 버전 스크립트 사용
           if [ -f "scripts/version-manager.sh" ]; then
-            CURRENT_VERSION=$(./scripts/version-manager.sh get)
+            CURRENT_VERSION=$(./scripts/version-manager.sh get 2>&1 | tail -n 1)
             echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
             echo "✅ 현재 버전: $CURRENT_VERSION"
             
