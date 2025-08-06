@@ -59,7 +59,7 @@ project_configs:
     version_format: 'version: "1.2.1"'
 # 메타데이터
 metadata:
-  last_updated: "2025-08-06 11:40:54"
+  last_updated: "2025-08-06 11:46:33"
   last_updated_by: "Cassiiopeia"
   auto_increment: true # patch 버전 자동 증가 여부
   changelog_enabled: true # 체인지로그 자동 생성 여부
