@@ -23,7 +23,7 @@
 # ===================================================================
 
 version: "1.2.7"
-project_type: "react-native-expo" # spring, flutter, react, react-native, react-native-expo, node, template 등
+project_type: "basic" # spring, flutter, react, react-native, react-native-expo, node, basic 등
 version_file: "version.yml" # 버전 정보가 저장된 파일 경로
 # 프로젝트 타입별 버전 파일 매핑
 # 실제 프로젝트에서는 해당하는 타입의 설정만 사용
@@ -53,10 +53,11 @@ project_configs:
     version_file: "package.json"
     version_pattern: '"version":'
     version_format: '"version": "{version}"'
-  template:
+  basic:
     version_file: "version.yml"
     version_pattern: "version: "
-    version_format: 'version: "1.2.2"'
+    version_format: 'version: "{version}"'
+    # basic 타입은 특정 프레임워크에 종속되지 않는 기본 타입으로, version.yml만 관리합니다
 # 메타데이터
 metadata:
   last_updated: "2025-08-06 12:43:52"

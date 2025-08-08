@@ -12,7 +12,7 @@
 # - react-native: package.json + Android/iOS 플랫폼별 버전 관리
 # - node: package.json의 version 관리
 # - python: pyproject.toml의 version 관리
-# - template: version.yml의 version 관리
+# - basic: version.yml만 관리하는 기본 타입
 #
 # 사용 방법:
 # 1. version.yml 파일에서 project_type을 설정하세요
@@ -129,6 +129,9 @@ jobs:
               if [ -f "pyproject.toml" ]; then
                 CHANGED_FILES="$CHANGED_FILES pyproject.toml"
               fi
+              ;;
+            "basic")
+              echo "📌 기본 타입 프로젝트: version.yml만 관리합니다"
               ;;
           esac
           

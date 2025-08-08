@@ -90,6 +90,9 @@ jobs:
             elif [ -f "package.json" ]; then
               CURRENT_VERSION=$(grep '"version":' package.json | sed 's/.*"version": *"\([^"]*\)".*/\1/')
               echo "project_type=node" >> $GITHUB_OUTPUT
+            elif [ -f "version.yml" ]; then
+              CURRENT_VERSION=$(grep "^version:" version.yml | sed 's/version: *"\([^"]*\)".*/\1/')
+              echo "project_type=basic" >> $GITHUB_OUTPUT
             else
               CURRENT_VERSION="1.0.0"
               echo "project_type=unknown" >> $GITHUB_OUTPUT
@@ -441,28 +444,25 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-      - name: PR 브랜치 최신화
-        env:
-          GH_TOKEN: ${{ secrets._GITHUB_PAT_TOKEN }}
-        run: |
-          PR_HEAD=$(gh pr view ${{ github.event.pull_request.number }} --json headRefName -q .headRefName)
-          git fetch origin $PR_HEAD
-          git checkout $PR_HEAD
-          git fetch origin deploy:deploy
-          git merge --no-edit deploy || true
-          git push origin HEAD
-
       - name: 자동 PR Merge
         env:
           GH_TOKEN: ${{ secrets._GITHUB_PAT_TOKEN }}
         run: |
-          gh pr merge ${{ github.event.pull_request.number }} --merge --admin --body "auto-merge after rebasing"
+          echo "🔄 PR #${{ github.event.pull_request.number }} 자동 머지 시도 중..."
+          
+          if gh pr merge ${{ github.event.pull_request.number }} --admin --merge; then
+            echo "✅ PR이 성공적으로 머지되었습니다!"
+          else
+            echo "❌ PR 머지에 실패했습니다. 수동으로 처리해주세요."
+            exit 1
+          fi
 
       - name: Deploy 브랜치 업데이트 및 배포 트리거
         run: |
           echo "🚀 Deploy 브랜치 업데이트 시작..."
           
-          # main → deploy 강제 푸시
+          # PAT 토큰으로 푸시하여 다음 워크플로우 트리거
+          git fetch origin main:main
           git push origin main:deploy --force
           
           echo "✅ Deploy 브랜치 업데이트 완료! 배포 워크플로우가 자동으로 트리거됩니다."
