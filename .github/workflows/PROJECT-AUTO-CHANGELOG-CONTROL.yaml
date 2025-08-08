@@ -69,7 +69,7 @@ jobs:
           if [ -f "scripts/version-manager.sh" ]; then
             CURRENT_VERSION=$(./scripts/version-manager.sh get | tail -n 1)
             echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-            
+          
             # 프로젝트 타입 확인
             if [ -f "version.yml" ]; then
               PROJECT_TYPE=$(grep "^project_type:" version.yml | sed 's/project_type: *"\([^"]*\)".*/\1/')
@@ -356,13 +356,13 @@ jobs:
           
               with open('CHANGELOG.md', 'w', encoding='utf-8') as f:
                   f.write("# Changelog\n\n")
-                  
+          
                   # 메타데이터 정보 추가
                   metadata = data.get('metadata', {})
                   project_type = metadata.get('projectType', 'Unknown')
                   current_version = metadata.get('currentVersion', 'Unknown')
                   last_updated = metadata.get('lastUpdated', 'Unknown')
-                  
+          
                   f.write(f"**프로젝트 타입:** {project_type}  \n")
                   f.write(f"**현재 버전:** {current_version}  \n")
                   f.write(f"**마지막 업데이트:** {last_updated}  \n\n")
@@ -370,11 +370,11 @@ jobs:
           
                   for release in data['releases']:
                       f.write(f"## [{release['version']}] - {release['date']}\n\n")
-                      
+          
                       # 프로젝트 타입 표시 (있는 경우)
                       if 'project_type' in release:
                           f.write(f"**프로젝트 타입:** {release['project_type']}  \n")
-                      
+          
                       # PR 번호 표시
                       if 'pr_number' in release:
                           f.write(f"**PR:** #{release['pr_number']}  \n\n")
@@ -413,7 +413,7 @@ jobs:
             REPO_NAME=$(basename "${{ github.repository }}")
             PROJECT_TYPE="${{ needs.detect-and-parse.outputs.project_type }}"
             VERSION="${{ needs.detect-and-parse.outputs.version }}"
-            
+          
             git commit -m "$REPO_NAME 버전 관리 : docs : v$VERSION 릴리즈 문서 업데이트 (PR #${{ github.event.pull_request.number }})"
             git push origin HEAD:main
             echo "✅ 변경사항이 성공적으로 커밋되었습니다"
@@ -441,25 +441,28 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
+      - name: PR 브랜치 최신화
+        env:
+          GH_TOKEN: ${{ secrets._GITHUB_PAT_TOKEN }}
+        run: |
+          PR_HEAD=$(gh pr view ${{ github.event.pull_request.number }} --json headRefName -q .headRefName)
+          git fetch origin $PR_HEAD
+          git checkout $PR_HEAD
+          git fetch origin deploy:deploy
+          git merge --no-edit deploy || true
+          git push origin HEAD
+
       - name: 자동 PR Merge
         env:
           GH_TOKEN: ${{ secrets._GITHUB_PAT_TOKEN }}
         run: |
-          echo "🔄 PR #${{ github.event.pull_request.number }} 자동 머지 시도 중..."
-          
-          if gh pr merge ${{ github.event.pull_request.number }} --admin --merge; then
-            echo "✅ PR이 성공적으로 머지되었습니다!"
-          else
-            echo "❌ PR 머지에 실패했습니다. 수동으로 처리해주세요."
-            exit 1
-          fi
+          gh pr merge ${{ github.event.pull_request.number }} --merge --admin --body "auto-merge after rebasing"
 
       - name: Deploy 브랜치 업데이트 및 배포 트리거
         run: |
           echo "🚀 Deploy 브랜치 업데이트 시작..."
           
-          # PAT 토큰으로 푸시하여 다음 워크플로우 트리거
-          git fetch origin main:main
+          # main → deploy 강제 푸시
           git push origin main:deploy --force
           
           echo "✅ Deploy 브랜치 업데이트 완료! 배포 워크플로우가 자동으로 트리거됩니다."
