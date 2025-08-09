@@ -1,8 +1,8 @@
 # ===================================================================
-# 범용 프로젝트 자동 체인지로그 관리 워크플로우  
+# 범용 프로젝트 자동 체인지로그 관리 워크플로우
 # ===================================================================
 #
-# 이 워크플로우는 deploy 브랜치로 PR이 생성될 때 CodeRabbit AI의 리뷰를 
+# 이 워크플로우는 deploy 브랜치로 PR이 생성될 때 CodeRabbit AI의 리뷰를
 # 자동으로 감지하고 파싱하여 CHANGELOG.json과 CHANGELOG.md를 업데이트합니다.
 #
 # 작동 방식:
@@ -40,6 +40,14 @@ jobs:
       version: ${{ steps.get_version.outputs.version }}
       project_type: ${{ steps.get_version.outputs.project_type }}
     steps:
+      - name: CodeRabbit Summary 요청 댓글 달기
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -X POST \
+               -d "{\"body\": \"@coderabbit summary\"}" \
+               "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments"
+
       - name: 저장소 체크아웃
         uses: actions/checkout@v4
         with:
@@ -69,7 +77,7 @@ jobs:
           if [ -f "scripts/version-manager.sh" ]; then
             CURRENT_VERSION=$(./scripts/version-manager.sh get | tail -n 1)
             echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-          
+
             # 프로젝트 타입 확인
             if [ -f "version.yml" ]; then
               PROJECT_TYPE=$(grep "^project_type:" version.yml | sed 's/project_type: *"\([^"]*\)".*/\1/')
@@ -90,9 +98,6 @@ jobs:
             elif [ -f "package.json" ]; then
               CURRENT_VERSION=$(grep '"version":' package.json | sed 's/.*"version": *"\([^"]*\)".*/\1/')
               echo "project_type=node" >> $GITHUB_OUTPUT
-            elif [ -f "version.yml" ]; then
-              CURRENT_VERSION=$(grep "^version:" version.yml | sed 's/version: *"\([^"]*\)".*/\1/')
-              echo "project_type=basic" >> $GITHUB_OUTPUT
             else
               CURRENT_VERSION="1.0.0"
               echo "project_type=unknown" >> $GITHUB_OUTPUT
@@ -110,21 +115,21 @@ jobs:
           TODAY=$(date '+%Y-%m-%d')
           MAX_ATTEMPTS=120  # 10분 = 120 * 5초
           ATTEMPT=0
-          
+
           echo "🔍 PR #$PR_NUMBER에서 CodeRabbit Summary 업데이트 감지 시작..."
           echo "📋 프로젝트 정보: $PROJECT_TYPE v$VERSION"
           echo "⏰ 최대 대기 시간: 10분 (5초마다 체크)"
-          
+
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
             echo "[$ATTEMPT/$MAX_ATTEMPTS] CodeRabbit Summary 확인 중... ($(date '+%H:%M:%S'))"
-          
+
             # GitHub API로 PR HTML 가져오기
             curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                  -H "Accept: application/vnd.github.v3.html" \
                  "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}" \
                  > pr_content.html
-          
+
             # "No description provided" 체크
             if grep -q "No description provided" pr_content.html; then
               echo "❌ 아직 'No description provided' 상태입니다"
@@ -135,12 +140,12 @@ jobs:
             else
               echo "⏳ CodeRabbit Summary 아직 없음"
             fi
-          
+
             if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
               sleep 5
             fi
           done
-          
+
           if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
             echo "⚠️ 10분 대기 후에도 CodeRabbit Summary를 찾을 수 없습니다"
             echo "summary_found=false" >> $GITHUB_OUTPUT
@@ -186,13 +191,13 @@ jobs:
           PROJECT_TYPE="${{ needs.detect-and-parse.outputs.project_type }}"
           TODAY=$(date '+%Y-%m-%d')
           TIMESTAMP=$(date '+%Y-%m-%dT%H:%M:%SZ')
-          
+
           echo "📝 CodeRabbit Summary 동적 파싱 시작..."
           echo "📋 프로젝트 정보: $PROJECT_TYPE v$VERSION"
-          
+
           # Summary 섹션 추출
           sed -n '/<h2[^>]*>Summary by CodeRabbit<\/h2>/,/<\/div>/p' pr_content.html > summary_section.html
-          
+
           # Python으로 동적 파싱
           cat > parse_changelog.py << 'EOF'
           import re
@@ -201,58 +206,58 @@ jobs:
           import sys
           import os
           from datetime import datetime
-          
+
           def extract_items_from_section(html_content, section_title):
               """특정 섹션의 아이템들을 추출"""
               print(f"📋 '{section_title}' 섹션에서 아이템 추출 중...")
-          
+
               # 다양한 패턴으로 섹션 찾기
               patterns = [
                   f'<strong[^>]*>{re.escape(section_title)}[^<]*</strong>',
                   f'<li[^>]*><strong[^>]*>{re.escape(section_title)}[^<]*</strong>',
                   f'<p[^>]*><strong[^>]*>{re.escape(section_title)}[^<]*</strong></p>'
               ]
-          
+
               section_match = None
               for pattern in patterns:
                   section_match = re.search(pattern, html_content, re.IGNORECASE)
                   if section_match:
                       print(f"✅ 패턴 매치: {pattern[:50]}...")
                       break
-          
+
               if not section_match:
                   print(f"❌ '{section_title}' 섹션을 찾을 수 없습니다")
                   return []
-          
+
               # 섹션 이후의 ul 태그 찾기
               after_section = html_content[section_match.end():]
               ul_match = re.search(r'<ul[^>]*>(.*?)</ul>', after_section, re.DOTALL)
-          
+
               if not ul_match:
                   print(f"❌ '{section_title}' 섹션 이후 ul 태그를 찾을 수 없습니다")
                   return []
-          
+
               # li 태그들에서 텍스트 추출
               ul_content = ul_match.group(1)
               li_items = re.findall(r'<li[^>]*>(.*?)</li>', ul_content, re.DOTALL)
-          
+
               items = []
               for item in li_items:
                   clean_text = re.sub(r'<[^>]*>', '', item)
                   clean_text = html.unescape(clean_text).strip()
                   if clean_text:
                       items.append(clean_text)
-          
+
               return items
-          
+
           def detect_categories(html_content):
               """HTML에서 동적으로 카테고리 감지"""
               print("🔍 HTML에서 카테고리 감지 시작...")
               detected_categories = {}
-          
+
               # strong 태그 안의 카테고리 제목들 찾기
               strong_texts = re.findall(r'<strong[^>]*>([^<]+)</strong>', html_content, re.IGNORECASE)
-          
+
               for strong_text in strong_texts:
                   clean_text = strong_text.strip()
                   items = extract_items_from_section(html_content, clean_text)
@@ -260,31 +265,31 @@ jobs:
                       safe_key = re.sub(r'[^a-zA-Z0-9가-힣]', '_', clean_text.lower()).strip('_')
                       if not safe_key:
                           safe_key = f"category_{len(detected_categories)}"
-          
+
                       detected_categories[safe_key] = {
                           'title': clean_text,
                           'items': items
                       }
-          
+
               return detected_categories
-          
+
           def main():
               version = os.environ.get('VERSION')
               project_type = os.environ.get('PROJECT_TYPE')
               today = os.environ.get('TODAY')
               pr_number = int(os.environ.get('PR_NUMBER'))
               timestamp = os.environ.get('TIMESTAMP')
-          
+
               try:
                   with open('summary_section.html', 'r', encoding='utf-8') as f:
                       html_content = f.read()
-          
+
                   categories = detect_categories(html_content)
-          
+
                   # Raw summary 읽기
                   with open('summary_section.html', 'r', encoding='utf-8') as f:
                       raw_summary = re.sub(r'<[^>]*>', '', f.read()).strip()
-          
+
                   # 새로운 릴리즈 엔트리 생성
                   new_release = {
                       "version": version,
@@ -294,11 +299,11 @@ jobs:
                       "raw_summary": raw_summary,
                       "parsed_changes": {}
                   }
-          
+
                   # 동적 카테고리를 parsed_changes에 추가
                   for key, value in categories.items():
                       new_release["parsed_changes"][key] = value["items"]
-          
+
                   # CHANGELOG.json 업데이트
                   try:
                       with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
@@ -313,75 +318,75 @@ jobs:
                           },
                           "releases": []
                       }
-          
+
                   # 메타데이터 업데이트
                   changelog_data["metadata"]["lastUpdated"] = timestamp
                   changelog_data["metadata"]["currentVersion"] = version
                   changelog_data["metadata"]["projectType"] = project_type
                   changelog_data["metadata"]["totalReleases"] = len(changelog_data["releases"]) + 1
-          
+
                   # 새 릴리즈를 맨 앞에 추가
                   changelog_data["releases"].insert(0, new_release)
-          
+
                   # 파일 저장
                   with open('CHANGELOG.json', 'w', encoding='utf-8') as f:
                       json.dump(changelog_data, f, indent=2, ensure_ascii=False)
-          
+
                   print("✅ CHANGELOG.json 업데이트 완료!")
-          
+
               except Exception as e:
                   print(f"❌ 파싱 오류: {e}")
                   sys.exit(1)
-          
+
           if __name__ == "__main__":
               main()
           EOF
-          
+
           # 환경 변수 설정하고 Python 스크립트 실행
           export VERSION="$VERSION"
           export PROJECT_TYPE="$PROJECT_TYPE"
           export TODAY="$TODAY"
           export PR_NUMBER="$PR_NUMBER"
           export TIMESTAMP="$TIMESTAMP"
-          
+
           python3 parse_changelog.py
 
       - name: CHANGELOG.md 재생성
         run: |
           echo "📄 CHANGELOG.json에서 CHANGELOG.md 재생성 중..."
-          
+
           python3 << 'PYTHON_SCRIPT'
           import json
-          
+
           try:
               with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
                   data = json.load(f)
-          
+
               with open('CHANGELOG.md', 'w', encoding='utf-8') as f:
                   f.write("# Changelog\n\n")
-          
+
                   # 메타데이터 정보 추가
                   metadata = data.get('metadata', {})
                   project_type = metadata.get('projectType', 'Unknown')
                   current_version = metadata.get('currentVersion', 'Unknown')
                   last_updated = metadata.get('lastUpdated', 'Unknown')
-          
+
                   f.write(f"**프로젝트 타입:** {project_type}  \n")
                   f.write(f"**현재 버전:** {current_version}  \n")
                   f.write(f"**마지막 업데이트:** {last_updated}  \n\n")
                   f.write("---\n\n")
-          
+
                   for release in data['releases']:
                       f.write(f"## [{release['version']}] - {release['date']}\n\n")
-          
+
                       # 프로젝트 타입 표시 (있는 경우)
                       if 'project_type' in release:
                           f.write(f"**프로젝트 타입:** {release['project_type']}  \n")
-          
+
                       # PR 번호 표시
                       if 'pr_number' in release:
                           f.write(f"**PR:** #{release['pr_number']}  \n\n")
-          
+
                       for category_key, items in release['parsed_changes'].items():
                           if items:
                               if isinstance(items, dict) and 'items' in items:
@@ -390,17 +395,17 @@ jobs:
                               else:
                                   actual_items = items
                                   title = category_key.replace('_', ' ').title()
-          
+
                               f.write(f"**{title}**\n")
-          
+
                               for item in actual_items:
                                   f.write(f"- {item}\n")
                               f.write("\n")
-          
+
                       f.write("---\n\n")
-          
+
               print("✅ CHANGELOG.md 재생성 완료!")
-          
+
           except Exception as e:
               print(f"❌ CHANGELOG.md 생성 실패: {e}")
               exit(1)
@@ -409,14 +414,14 @@ jobs:
       - name: 변경사항 커밋 및 푸시
         run: |
           git add CHANGELOG.json CHANGELOG.md
-          
+
           if git diff --staged --quiet; then
             echo "📝 변경사항이 없습니다"
           else
             REPO_NAME=$(basename "${{ github.repository }}")
             PROJECT_TYPE="${{ needs.detect-and-parse.outputs.project_type }}"
             VERSION="${{ needs.detect-and-parse.outputs.version }}"
-          
+
             git commit -m "$REPO_NAME 버전 관리 : docs : v$VERSION 릴리즈 문서 업데이트 (PR #${{ github.event.pull_request.number }})"
             git push origin HEAD:main
             echo "✅ 변경사항이 성공적으로 커밋되었습니다"
@@ -430,7 +435,7 @@ jobs:
   merge-and-deploy:
     name: PR 머지 및 배포 트리거
     runs-on: ubuntu-latest
-    needs: [ detect-and-parse, update-changelog ]
+    needs: [detect-and-parse, update-changelog]
     if: needs.detect-and-parse.outputs.summary_found == 'true'
     steps:
       - name: 저장소 체크아웃
@@ -444,27 +449,30 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
+      - name: PR 브랜치 최신화
+        env:
+          GH_TOKEN: ${{ secrets._GITHUB_PAT_TOKEN }}
+        run: |
+          PR_HEAD=$(gh pr view ${{ github.event.pull_request.number }} --json headRefName -q .headRefName)
+          git fetch origin $PR_HEAD
+          git checkout $PR_HEAD
+          git fetch origin deploy:deploy
+          git merge --no-edit deploy || true
+          git push origin HEAD
+
       - name: 자동 PR Merge
         env:
           GH_TOKEN: ${{ secrets._GITHUB_PAT_TOKEN }}
         run: |
-          echo "🔄 PR #${{ github.event.pull_request.number }} 자동 머지 시도 중..."
-          
-          if gh pr merge ${{ github.event.pull_request.number }} --admin --merge; then
-            echo "✅ PR이 성공적으로 머지되었습니다!"
-          else
-            echo "❌ PR 머지에 실패했습니다. 수동으로 처리해주세요."
-            exit 1
-          fi
+          gh pr merge ${{ github.event.pull_request.number }} --merge --admin --body "auto-merge after rebasing"
 
       - name: Deploy 브랜치 업데이트 및 배포 트리거
         run: |
           echo "🚀 Deploy 브랜치 업데이트 시작..."
-          
-          # PAT 토큰으로 푸시하여 다음 워크플로우 트리거
-          git fetch origin main:main
+
+          # main → deploy 강제 푸시
           git push origin main:deploy --force
-          
+
           echo "✅ Deploy 브랜치 업데이트 완료! 배포 워크플로우가 자동으로 트리거됩니다."
 
       - name: 배포 완료 알림
