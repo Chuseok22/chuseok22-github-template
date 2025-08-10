@@ -281,7 +281,9 @@ jobs:
           echo "🚀 Deploy 브랜치 업데이트 시작..."
 
           # main → deploy 강제 푸시
-          git push origin main:deploy --force
+          git fetch origin main
+          git checkout -B deploy main
+          git push origin deploy --force
 
           echo "✅ Deploy 브랜치 업데이트 완료! 배포 워크플로우가 자동으로 트리거됩니다."
 
