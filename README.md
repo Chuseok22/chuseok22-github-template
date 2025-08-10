@@ -73,11 +73,17 @@
 ## 🚀 프로젝트 초기 설정
 
 1. **필요 파일 복사**
+
    ```
    .github/               # 워크플로우 및 스크립트 디렉토리
    version.yml            # 프로젝트 버전 정보 파일
    .coderabbit.yaml       # CodeRabbit AI 설정 파일
    ```
+
+   - 다음 3개의 파일만 복제하면됩니다 + README.md 파일에서 "## 최신 버전 : " 해당 부분 추가
+
+<img width="186" height="269" alt="image" src="https://github.com/user-attachments/assets/7fbaacf7-3710-416a-b7a7-a4af84cafd48" />
+
 
 2. **version.yml 설정**
    ```yaml
