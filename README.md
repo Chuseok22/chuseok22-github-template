@@ -201,10 +201,6 @@ chmod +x .github/scripts/changelog_parser.py
 chmod +x .github/scripts/changelog_generator.py
 ```
 
-## 📝 라이센스
-
-MIT 라이센스 - 자유롭게 사용, 수정, 배포 가능합니다.
-
 ## 🤝 기여하기
 자세한 기여 가이드라인은 [CONTRIBUTING.md](https://github.com/Cassiiopeia/suh-github-template/blob/main/CONTRIBUTING.md)를 참조해주세요.
 
