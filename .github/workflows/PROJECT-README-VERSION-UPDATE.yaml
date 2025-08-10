@@ -1,0 +1,116 @@
+# ===================================================================
+# README 파일 버전 자동 업데이트 워크플로우
+# ===================================================================
+#
+# 이 워크플로우는 deploy 브랜치로 푸시가 발생할 때 README.md 파일의
+# 버전 정보를 version-manager.sh를 통해 가져와 자동으로 업데이트합니다.
+#
+# 작동 방식:
+# 1. deploy 브랜치 푸시 시 트리거
+# 2. version-manager.sh를 통해 최신 버전 정보 추출
+# 3. README.md 파일의 버전 정보 업데이트
+# 4. 변경사항 커밋 및 푸시
+#
+# ⚠️ README.md 파일 필수 형식 가이드라인:
+# 
+# ⚠️ 중요: README.md 파일에 반드시 "## 최신 버전 : " 문자열이 정확히 포함되어야 합니다!
+# 이 문자열이 없으면 자동 버전 업데이트가 작동하지 않습니다.
+#
+# - README.md 파일에 다음과 같은 형식이 반드시 있어야 합니다:
+#   ```markdown
+#   # 프로젝트명
+#   <!-- 수정하지마세요 자동으로 동기화 됩니다 -->
+#   ## 최신 버전 : v버전번호 (날짜)
+#   ```
+# 
+# - "## 최신 버전 : " 문자열은 정확히 이 형태로 작성해야 합니다(공백 포함).
+# - 주석 <!-- 수정하지마세요 자동으로 동기화 됩니다 -->는 사용자에게 경고를 제공합니다.
+# - 이 형식을 유지하지 않으면 자동 버전 업데이트가 작동하지 않습니다.
+#
+# ===================================================================
+
+name: README VERSION UPDATE
+
+on:
+  push:
+    branches: ["deploy"]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-readme:
+    name: README 버전 정보 업데이트
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          ref: deploy
+
+      - name: Git 설정
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: version-manager.sh를 통해 최신 버전 정보 가져오기
+        id: version_info
+        run: |
+          # 버전 관리 스크립트에 실행 권한 부여
+          chmod +x .github/scripts/version-manager.sh
+          
+          # version-manager.sh를 통해 최신 버전 가져오기
+          LATEST_VERSION=$(.github/scripts/version-manager.sh get | tail -n 1)
+          
+          # 현재 날짜를 릴리즈 날짜로 사용
+          RELEASE_DATE=$(date '+%Y-%m-%d')
+          
+          # 버전 정보 저장
+          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "release_date=$RELEASE_DATE" >> $GITHUB_OUTPUT
+      
+      - name: README.md 파일 버전 정보 업데이트
+        run: |
+          LATEST_VERSION="${{ steps.version_info.outputs.latest_version }}"
+          RELEASE_DATE="${{ steps.version_info.outputs.release_date }}"
+          
+          # "## 최신 버전 : " 문자열이 존재하는지 확인
+          if ! grep -q "## 최신 버전 : " README.md; then
+            echo "⚠️ 오류: README.md 파일에 '## 최신 버전 : ' 문자열이 없습니다!"
+            echo "README.md 파일에 다음 형식을 추가해주세요:"
+            echo "## 최신 버전 : v버전번호 (날짜)"
+            exit 1
+          fi
+          
+          # HTML 주석(<!-- 수정하지마세요 자동으로 동기화 됩니다 -->)이 존재하는지 확인
+          if ! grep -q "<!-- 수정하지마세요 자동으로 동기화 됩니다 -->" README.md; then
+            # 주석이 없으면 "## 최신 버전 : " 라인 위에 추가
+            sed -i '/## 최신 버전 : /i\<!-- 수정하지마세요 자동으로 동기화 됩니다 -->' README.md
+            echo "✅ 자동 업데이트 주석 추가 완료"
+          fi
+          
+          # 버전 정보 업데이트
+          sed -i "s/## 최신 버전 : .*/## 최신 버전 : v${LATEST_VERSION} (${RELEASE_DATE})/" README.md
+          echo "✅ 버전 정보 업데이트 완료: v${LATEST_VERSION} (${RELEASE_DATE})"
+          
+      - name: 변경사항 커밋 및 푸시
+        run: |
+          git add README.md
+          
+          if git diff --staged --quiet; then
+            echo "📝 README.md에 변경사항이 없습니다"
+          else
+            REPO_NAME=$(basename "${{ github.repository }}")
+            VERSION="${{ steps.version_info.outputs.latest_version }}"
+            
+            git commit -m "$REPO_NAME 버전 관리 : docs : v$VERSION README 버전 정보 업데이트"
+            
+            # deploy → main 브랜치로 푸시하고, 강제 푸시하여 동기화
+            git push origin HEAD:deploy
+            git push origin HEAD:main
+            
+            echo "✅ README.md 버전 정보 업데이트 완료"
+          fi
