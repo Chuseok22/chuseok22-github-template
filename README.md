@@ -1,7 +1,7 @@
 # 🚀 GitHub 자동화 템플릿
 
 <!-- 수정하지마세요 자동으로 동기화 됩니다 -->
-## 최신 버전 : v1.1.4 (2025-08-10)
+## 최신 버전 : v1.1.7 (2025-08-10)
 
 [전체 버전 기록 보기](CHANGELOG.md)
 
@@ -80,7 +80,7 @@
    .coderabbit.yaml       # CodeRabbit AI 설정 파일
    ```
 
-   - 다음 3개의 파일만 복제하면됩니다 + README.md 파일에서 "## 최신 버전 : v1.1.4 (2025-08-10)
+   - 다음 3개의 파일만 복제하면됩니다 + README.md 파일에서 "## 최신 버전 : v1.1.7 (2025-08-10)
 
 <img width="186" height="269" alt="image" src="https://github.com/user-attachments/assets/7fbaacf7-3710-416a-b7a7-a4af84cafd48" />
 
@@ -140,10 +140,10 @@ README.md 파일에 버전 정보가 자동으로 업데이트되려면 다음 �
 ```markdown
 # 프로젝트명
 <!-- 수정하지마세요 자동으로 동기화 됩니다 -->
-## 최신 버전 : v1.1.4 (2025-08-10)
+## 최신 버전 : v1.1.7 (2025-08-10)
 ```
 
-⚠️ **중요**: `## 최신 버전 : v1.1.4 (2025-08-10)
+⚠️ **중요**: `## 최신 버전 : v1.1.7 (2025-08-10)
 
 ## 🔧 스크립트 사용법
 
@@ -206,37 +206,6 @@ chmod +x .github/scripts/changelog_generator.py
 MIT 라이센스 - 자유롭게 사용, 수정, 배포 가능합니다.
 
 ## 🤝 기여하기
-
-이 프로젝트에 기여하고 싶으시다면 다음 가이드라인을 참고해주세요:
-
-### 기여 방법
-
-1. 이 저장소를 포크합니다
-2. 새 기능 브랜치를 생성합니다 (`git checkout -b feature/amazing-feature`)
-3. 변경사항을 커밋합니다 (`git commit -m 'feat: 멋진 새 기능 추가'`)
-4. 브랜치에 푸시합니다 (`git push origin feature/amazing-feature`)
-5. Pull Request를 생성합니다
-
-### 커밋 메시지 컨벤션
-
-이 프로젝트는 다음과 같은 커밋 메시지 컨벤션을 사용합니다:
-
-- `feat:` - 새 기능 추가
-- `fix:` - 버그 수정
-- `docs:` - 문서 변경
-- `style:` - 코드 포맷팅, 세미콜론 누락 등 (코드 변경 없음)
-- `refactor:` - 코드 리팩토링
-- `test:` - 테스트 코드 추가 또는 수정
-- `chore:` - 빌드 프로세스, 라이브러리 업데이트 등 변경
-
-### 이슈 템플릿
-
-새 이슈를 생성할 때는 `.github/ISSUE_TEMPLATE` 폴더의 템플릿을 사용해주세요.
-
-### PR 템플릿
-
-Pull Request를 생성할 때는 `.github/PULL_REQUEST_TEMPLATE.md` 파일의 템플릿을 사용해주세요.
-
 자세한 기여 가이드라인은 [CONTRIBUTING.md](https://github.com/Cassiiopeia/suh-github-template/blob/main/CONTRIBUTING.md)를 참조해주세요.
 
 ## 📬 문의사항
