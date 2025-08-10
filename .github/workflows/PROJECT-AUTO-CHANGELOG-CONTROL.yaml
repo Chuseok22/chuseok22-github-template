@@ -276,16 +276,16 @@ jobs:
         run: |
           gh pr merge ${{ github.event.pull_request.number }} --merge --admin --body "auto-merge after rebasing"
 
-      - name: Deploy 브랜치 업데이트 및 배포 트리거
-        run: |
-          echo "🚀 Deploy 브랜치 업데이트 시작..."
-
-          # main → deploy 강제 푸시
-          git fetch origin main
-          git checkout -B deploy main
-          git push origin deploy --force
-
-          echo "✅ Deploy 브랜치 업데이트 완료! 배포 워크플로우가 자동으로 트리거됩니다."
+      #      - name: Deploy 브랜치 업데이트 및 배포 트리거
+      #        run: |
+      #          echo "🚀 Deploy 브랜치 업데이트 시작..."
+      #
+      #          # main → deploy 강제 푸시
+      #          git fetch origin main
+      #          git checkout -B deploy main
+      #          git push origin deploy --force
+      #
+      #          echo "✅ Deploy 브랜치 업데이트 완료! 배포 워크플로우가 자동으로 트리거됩니다."
 
       - name: 배포 완료 알림
         run: |
