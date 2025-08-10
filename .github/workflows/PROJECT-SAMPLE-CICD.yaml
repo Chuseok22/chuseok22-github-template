@@ -3,10 +3,6 @@ name: PROJECT-SAMPLE-CICD
 on:
   push:
     branches: ["deploy"]
-
-on:
-  push:
-    branches: ["deploy"]
   workflow_dispatch:  # 수동 트리거 옵션 추가
 
 jobs:
