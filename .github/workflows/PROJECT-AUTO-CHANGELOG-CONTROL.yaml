@@ -63,19 +63,19 @@ jobs:
 
       - name: 버전 관리 스크립트 권한 설정
         run: |
-          if [ -f "scripts/version_manager.sh" ]; then
-            chmod +x scripts/version_manager.sh
+          if [ -f ".github/scripts/version-manager.sh" ]; then
+            chmod +x .github/scripts/version-manager.sh
             echo "✅ 버전 관리 스크립트 권한 설정 완료"
           else
-            echo "⚠️ scripts/version_manager.sh 파일을 찾을 수 없습니다."
+            echo "⚠️ .github/scripts/version-manager.sh 파일을 찾을 수 없습니다."
           fi
 
       - name: 현재 버전 및 프로젝트 정보 확인
         id: get_version
         run: |
           # 범용 버전 스크립트 사용
-          if [ -f "scripts/version_manager.sh" ]; then
-            CURRENT_VERSION=$(./scripts/version_manager.sh get | tail -n 1)
+          if [ -f ".github/scripts/version-manager.sh" ]; then
+            CURRENT_VERSION=$(./.github/scripts/version-manager.sh get | tail -n 1)
             echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
 
             # 프로젝트 타입 확인
@@ -184,12 +184,12 @@ jobs:
         with:
           name: pr-content
 
-#      - name: Python 스크립트 실행 권한 설정
-#        run: |
-#          # 파이썬 스크립트 실행 권한 설정
-#          chmod +x scripts/changelog_parser.py
-#          chmod +x scripts/changelog_generator.py
-#          echo "✅ Python 스크립트 실행 권한 설정 완료"
+      - name: Python 스크립트 실행 권한 설정
+        run: |
+          # 파이썬 스크립트 실행 권한 설정
+          chmod +x .github/scripts/changelog_parser.py
+          chmod +x .github/scripts/changelog_generator.py
+          echo "✅ Python 스크립트 실행 권한 설정 완료"
 
       - name: 동적 Summary 파싱 및 CHANGELOG.json 업데이트
         run: |
@@ -205,150 +205,6 @@ jobs:
           # Summary 섹션 추출
           sed -n '/<h2[^>]*>Summary by CodeRabbit<\/h2>/,/<\/div>/p' pr_content.html > summary_section.html
 
-          # Python으로 동적 파싱
-          cat > parse_changelog.py << 'EOF'
-          import re
-          import json
-          import html
-          import sys
-          import os
-          from datetime import datetime
-
-          def extract_items_from_section(html_content, section_title):
-              """특정 섹션의 아이템들을 추출"""
-              print(f"📋 '{section_title}' 섹션에서 아이템 추출 중...")
-
-              # 다양한 패턴으로 섹션 찾기
-              patterns = [
-                  f'<strong[^>]*>{re.escape(section_title)}[^<]*</strong>',
-                  f'<li[^>]*><strong[^>]*>{re.escape(section_title)}[^<]*</strong>',
-                  f'<p[^>]*><strong[^>]*>{re.escape(section_title)}[^<]*</strong></p>'
-              ]
-
-              section_match = None
-              for pattern in patterns:
-                  section_match = re.search(pattern, html_content, re.IGNORECASE)
-                  if section_match:
-                      print(f"✅ 패턴 매치: {pattern[:50]}...")
-                      break
-
-              if not section_match:
-                  print(f"❌ '{section_title}' 섹션을 찾을 수 없습니다")
-                  return []
-
-              # 섹션 이후의 ul 태그 찾기
-              after_section = html_content[section_match.end():]
-              ul_match = re.search(r'<ul[^>]*>(.*?)</ul>', after_section, re.DOTALL)
-
-              if not ul_match:
-                  print(f"❌ '{section_title}' 섹션 이후 ul 태그를 찾을 수 없습니다")
-                  return []
-
-              # li 태그들에서 텍스트 추출
-              ul_content = ul_match.group(1)
-              li_items = re.findall(r'<li[^>]*>(.*?)</li>', ul_content, re.DOTALL)
-
-              items = []
-              for item in li_items:
-                  clean_text = re.sub(r'<[^>]*>', '', item)
-                  clean_text = html.unescape(clean_text).strip()
-                  if clean_text:
-                      items.append(clean_text)
-
-              return items
-
-          def detect_categories(html_content):
-              """HTML에서 동적으로 카테고리 감지"""
-              print("🔍 HTML에서 카테고리 감지 시작...")
-              detected_categories = {}
-
-              # strong 태그 안의 카테고리 제목들 찾기
-              strong_texts = re.findall(r'<strong[^>]*>([^<]+)</strong>', html_content, re.IGNORECASE)
-
-              for strong_text in strong_texts:
-                  clean_text = strong_text.strip()
-                  items = extract_items_from_section(html_content, clean_text)
-                  if items:
-                      safe_key = re.sub(r'[^a-zA-Z0-9가-힣]', '_', clean_text.lower()).strip('_')
-                      if not safe_key:
-                          safe_key = f"category_{len(detected_categories)}"
-
-                      detected_categories[safe_key] = {
-                          'title': clean_text,
-                          'items': items
-                      }
-
-              return detected_categories
-
-          def main():
-              version = os.environ.get('VERSION')
-              project_type = os.environ.get('PROJECT_TYPE')
-              today = os.environ.get('TODAY')
-              pr_number = int(os.environ.get('PR_NUMBER'))
-              timestamp = os.environ.get('TIMESTAMP')
-
-              try:
-                  with open('summary_section.html', 'r', encoding='utf-8') as f:
-                      html_content = f.read()
-
-                  categories = detect_categories(html_content)
-
-                  # Raw summary 읽기
-                  with open('summary_section.html', 'r', encoding='utf-8') as f:
-                      raw_summary = re.sub(r'<[^>]*>', '', f.read()).strip()
-
-                  # 새로운 릴리즈 엔트리 생성
-                  new_release = {
-                      "version": version,
-                      "project_type": project_type,
-                      "date": today,
-                      "pr_number": pr_number,
-                      "raw_summary": raw_summary,
-                      "parsed_changes": {}
-                  }
-
-                  # 동적 카테고리를 parsed_changes에 추가
-                  for key, value in categories.items():
-                      new_release["parsed_changes"][key] = value["items"]
-
-                  # CHANGELOG.json 업데이트
-                  try:
-                      with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
-                          changelog_data = json.load(f)
-                  except (FileNotFoundError, json.JSONDecodeError):
-                      changelog_data = {
-                          "metadata": {
-                              "lastUpdated": timestamp,
-                              "currentVersion": version,
-                              "projectType": project_type,
-                              "totalReleases": 0
-                          },
-                          "releases": []
-                      }
-
-                  # 메타데이터 업데이트
-                  changelog_data["metadata"]["lastUpdated"] = timestamp
-                  changelog_data["metadata"]["currentVersion"] = version
-                  changelog_data["metadata"]["projectType"] = project_type
-                  changelog_data["metadata"]["totalReleases"] = len(changelog_data["releases"]) + 1
-
-                  # 새 릴리즈를 맨 앞에 추가
-                  changelog_data["releases"].insert(0, new_release)
-
-                  # 파일 저장
-                  with open('CHANGELOG.json', 'w', encoding='utf-8') as f:
-                      json.dump(changelog_data, f, indent=2, ensure_ascii=False)
-
-                  print("✅ CHANGELOG.json 업데이트 완료!")
-
-              except Exception as e:
-                  print(f"❌ 파싱 오류: {e}")
-                  sys.exit(1)
-
-          if __name__ == "__main__":
-              main()
-          EOF
-
           # 환경 변수 설정하고 Python 스크립트 실행
           export VERSION="$VERSION"
           export PROJECT_TYPE="$PROJECT_TYPE"
@@ -356,67 +212,14 @@ jobs:
           export PR_NUMBER="$PR_NUMBER"
           export TIMESTAMP="$TIMESTAMP"
 
-          python3 parse_changelog.py
+          # .github/scripts/changelog_parser.py 실행
+          python3 .github/scripts/changelog_parser.py
 
       - name: CHANGELOG.md 재생성
         run: |
           echo "📄 CHANGELOG.json에서 CHANGELOG.md 재생성 중..."
-          
-          python3 << 'PYTHON_SCRIPT'
-          import json
-
-          try:
-              with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
-                  data = json.load(f)
-
-              with open('CHANGELOG.md', 'w', encoding='utf-8') as f:
-                  f.write("# Changelog\n\n")
-
-                  # 메타데이터 정보 추가
-                  metadata = data.get('metadata', {})
-                  project_type = metadata.get('projectType', 'Unknown')
-                  current_version = metadata.get('currentVersion', 'Unknown')
-                  last_updated = metadata.get('lastUpdated', 'Unknown')
-
-                  f.write(f"**프로젝트 타입:** {project_type}  \n")
-                  f.write(f"**현재 버전:** {current_version}  \n")
-                  f.write(f"**마지막 업데이트:** {last_updated}  \n\n")
-                  f.write("---\n\n")
-
-                  for release in data['releases']:
-                      f.write(f"## [{release['version']}] - {release['date']}\n\n")
-
-                      # 프로젝트 타입 표시 (있는 경우)
-                      if 'project_type' in release:
-                          f.write(f"**프로젝트 타입:** {release['project_type']}  \n")
-
-                      # PR 번호 표시
-                      if 'pr_number' in release:
-                          f.write(f"**PR:** #{release['pr_number']}  \n\n")
-
-                      for category_key, items in release['parsed_changes'].items():
-                          if items:
-                              if isinstance(items, dict) and 'items' in items:
-                                  actual_items = items['items']
-                                  title = items['title']
-                              else:
-                                  actual_items = items
-                                  title = category_key.replace('_', ' ').title()
-
-                              f.write(f"**{title}**\n")
-
-                              for item in actual_items:
-                                  f.write(f"- {item}\n")
-                              f.write("\n")
-
-                      f.write("---\n\n")
-
-              print("✅ CHANGELOG.md 재생성 완료!")
-
-          except Exception as e:
-              print(f"❌ CHANGELOG.md 생성 실패: {e}")
-              exit(1)
-          PYTHON_SCRIPT
+          # .github/scripts/changelog_generator.py 실행
+          python3 .github/scripts/changelog_generator.py
 
       - name: 변경사항 커밋 및 푸시
         run: |
@@ -436,7 +239,7 @@ jobs:
 
       - name: 정리
         run: |
-          rm -f summary_section.html parse_changelog.py
+          rm -f summary_section.html
 
   # Job 3: PR 머지 및 배포 트리거 (Job 2 완료 후 실행)
   merge-and-deploy:
