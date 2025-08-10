@@ -1,11 +1,27 @@
 {
   "metadata": {
-    "lastUpdated": "2025-08-10T05:48:42Z",
-    "currentVersion": "1.1.6",
+    "lastUpdated": "2025-08-10T05:51:53Z",
+    "currentVersion": "1.1.7",
     "projectType": "basic",
-    "totalReleases": 8
+    "totalReleases": 9
   },
   "releases": [
+    {
+      "version": "1.1.7",
+      "project_type": "basic",
+      "date": "2025-08-10",
+      "pr_number": 21,
+      "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\n\\nDocumentation\\n\\n기여 가이드가 README에서 간략화되어, 자세한 내용은 외부 CONTRIBUTING.md 파일을 참조하도록 변경되었습니다.\\n연락처 섹션에 소폭 수정(개행 추가)이 이루어졌습니다.\\n\\n\\n\\nChores\\n\\n버전이 1.1.6에서 1.1.7로 업데이트되었습니다.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"unstable\",\n  \"merged_by\": null,\n  \"comments\": 3,\n  \"review_comments\": 0,\n  \"maintainer_can_modify\": false,\n  \"commits\": 2,\n  \"additions\": 2,\n  \"deletions\": 33,\n  \"changed_files\": 2\n}",
+      "parsed_changes": {
+        "documentation": [
+          "기여 가이드가 README에서 간략화되어, 자세한 내용은 외부 CONTRIBUTING.md 파일을 참조하도록 변경되었습니다.",
+          "연락처 섹션에 소폭 수정(개행 추가)이 이루어졌습니다."
+        ],
+        "chores": [
+          "버전이 1.1.6에서 1.1.7로 업데이트되었습니다."
+        ]
+      }
+    },
     {
       "version": "1.1.6",
       "project_type": "basic",
