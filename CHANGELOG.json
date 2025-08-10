@@ -1,11 +1,23 @@
 {
   "metadata": {
-    "lastUpdated": "2025-08-10T05:14:49Z",
-    "currentVersion": "1.1.2",
+    "lastUpdated": "2025-08-10T05:25:53Z",
+    "currentVersion": "1.1.4",
     "projectType": "basic",
-    "totalReleases": 6
+    "totalReleases": 7
   },
   "releases": [
+    {
+      "version": "1.1.4",
+      "project_type": "basic",
+      "date": "2025-08-10",
+      "pr_number": 18,
+      "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\nChores\\n\\nREADME.md 파일 내부 사용자가 해당 프로젝트에서 필요한 파일에 대한 자세한 설명 및 참고사항 추가\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"unstable\",\n  \"merged_by\": null,\n  \"comments\": 3,\n  \"review_comments\": 0,\n  \"maintainer_can_modify\": false,\n  \"commits\": 2,\n  \"additions\": 8,\n  \"deletions\": 2,\n  \"changed_files\": 2\n}",
+      "parsed_changes": {
+        "chores": [
+          "README.md 파일 내부 사용자가 해당 프로젝트에서 필요한 파일에 대한 자세한 설명 및 참고사항 추가"
+        ]
+      }
+    },
     {
       "version": "1.1.2",
       "project_type": "basic",
