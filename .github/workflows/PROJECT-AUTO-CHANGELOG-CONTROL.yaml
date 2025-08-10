@@ -63,19 +63,19 @@ jobs:
 
       - name: 버전 관리 스크립트 권한 설정
         run: |
-          if [ -f "scripts/version-manager.sh" ]; then
-            chmod +x scripts/version-manager.sh
+          if [ -f "scripts/version_manager.sh" ]; then
+            chmod +x scripts/version_manager.sh
             echo "✅ 버전 관리 스크립트 권한 설정 완료"
           else
-            echo "⚠️ scripts/version-manager.sh 파일을 찾을 수 없습니다."
+            echo "⚠️ scripts/version_manager.sh 파일을 찾을 수 없습니다."
           fi
 
       - name: 현재 버전 및 프로젝트 정보 확인
         id: get_version
         run: |
           # 범용 버전 스크립트 사용
-          if [ -f "scripts/version-manager.sh" ]; then
-            CURRENT_VERSION=$(./scripts/version-manager.sh get | tail -n 1)
+          if [ -f "scripts/version_manager.sh" ]; then
+            CURRENT_VERSION=$(./scripts/version_manager.sh get | tail -n 1)
             echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
 
             # 프로젝트 타입 확인
@@ -183,6 +183,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: pr-content
+
+#      - name: Python 스크립트 실행 권한 설정
+#        run: |
+#          # 파이썬 스크립트 실행 권한 설정
+#          chmod +x scripts/changelog_parser.py
+#          chmod +x scripts/changelog_generator.py
+#          echo "✅ Python 스크립트 실행 권한 설정 완료"
 
       - name: 동적 Summary 파싱 및 CHANGELOG.json 업데이트
         run: |
@@ -354,7 +361,7 @@ jobs:
       - name: CHANGELOG.md 재생성
         run: |
           echo "📄 CHANGELOG.json에서 CHANGELOG.md 재생성 중..."
-
+          
           python3 << 'PYTHON_SCRIPT'
           import json
 
