@@ -48,9 +48,9 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           
           # 현재 프로젝트 버전 확인
-          if [ -f ".github/scripts/version-manager.sh" ]; then
-            chmod +x .github/scripts/version-manager.sh
-            CURRENT_VERSION=$(./.github/scripts/version-manager.sh get | tail -n 1)
+          if [ -f ".github/scripts/version_manager.sh" ]; then
+            chmod +x .github/scripts/version_manager.sh
+            CURRENT_VERSION=$(./.github/scripts/version_manager.sh get | tail -n 1)
             echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           elif [ -f "version.yml" ]; then
             CURRENT_VERSION=$(grep "^version:" version.yml | sed 's/version: *"\([^"]*\)".*/\1/')

@@ -63,19 +63,19 @@ jobs:
 
       - name: 버전 관리 스크립트 권한 설정
         run: |
-          if [ -f ".github/scripts/version-manager.sh" ]; then
-            chmod +x .github/scripts/version-manager.sh
+          if [ -f ".github/scripts/version_manager.sh" ]; then
+            chmod +x .github/scripts/version_manager.sh
             echo "✅ 버전 관리 스크립트 권한 설정 완료"
           else
-            echo "⚠️ .github/scripts/version-manager.sh 파일을 찾을 수 없습니다."
+            echo "⚠️ .github/scripts/version_manager.sh 파일을 찾을 수 없습니다."
           fi
 
       - name: 현재 버전 및 프로젝트 정보 확인
         id: get_version
         run: |
           # 범용 버전 스크립트 사용
-          if [ -f ".github/scripts/version-manager.sh" ]; then
-            CURRENT_VERSION=$(./.github/scripts/version-manager.sh get | tail -n 1)
+          if [ -f ".github/scripts/version_manager.sh" ]; then
+            CURRENT_VERSION=$(./.github/scripts/version_manager.sh get | tail -n 1)
             echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
 
             # 프로젝트 타입 확인

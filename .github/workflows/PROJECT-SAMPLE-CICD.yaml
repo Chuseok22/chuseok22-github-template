@@ -30,11 +30,11 @@ jobs:
 
       - name: 버전 관리 스크립트 권한 설정
         run: |
-          if [ -f ".github/scripts/version-manager.sh" ]; then
-            chmod +x .github/scripts/version-manager.sh
+          if [ -f ".github/scripts/version_manager.sh" ]; then
+            chmod +x .github/scripts/version_manager.sh
             echo "✅ 버전 관리 스크립트 권한 설정 완료"
           else
-            echo "⚠️ .github/scripts/version-manager.sh 파일을 찾을 수 없습니다."
+            echo "⚠️ .github/scripts/version_manager.sh 파일을 찾을 수 없습니다."
             exit 1
           fi
 
@@ -42,8 +42,8 @@ jobs:
       - name: 현재 버전 및 프로젝트 정보 확인
         id: current_version
         run: |
-          # version-manager.sh 실행하여 버전 가져오기
-          VERSION_INFO=$(./.github/scripts/version-manager.sh get | tail -n 1)
+          # version_manager.sh 실행하여 버전 가져오기
+          VERSION_INFO=$(./.github/scripts/version_manager.sh get | tail -n 1)
           # 프로젝트 타입 가져오기
           PROJECT_TYPE=$(grep "^project_type:" version.yml | sed 's/project_type: *"\([^"]*\)".*/\1/')
           

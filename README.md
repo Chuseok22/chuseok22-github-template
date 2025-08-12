@@ -1,7 +1,7 @@
 # 🚀 GitHub 자동화 템플릿
 
 <!-- 수정하지마세요 자동으로 동기화 됩니다 -->
-## 최신 버전 : v0.0.4 (2025-08-12)
+## 최신 버전 : v0.0.6 (2025-08-12)
 
 [전체 버전 기록 보기](CHANGELOG.md)
 
@@ -144,24 +144,24 @@ README.md 파일에 버전 정보가 자동으로 업데이트되려면 다음 �
 
 ```markdown
 <!-- 수정하지마세요 자동으로 동기화 됩니다 -->
-## 최신 버전 : v0.0.4 (2025-08-12)
+## 최신 버전 : v0.0.6 (2025-08-12)
 ```
 
 ## 🔧 스크립트 사용법
 
-### version-manager.sh
+### version_manager.sh
 
 버전 관리를 위한 쉘 스크립트
 
 ```bash
 # 현재 버전 확인
-.github/scripts/version-manager.sh get
+.github/scripts/version_manager.sh get
 
 # 패치 버전 증가 (1.0.0 → 1.0.1)
-.github/scripts/version-manager.sh increment
+.github/scripts/version_manager.sh increment
 
 # 특정 버전으로 설정
-.github/scripts/version-manager.sh set 2.0.0
+.github/scripts/version_manager.sh set 2.0.0
 ```
 
 ### changelog_manager.py
@@ -189,10 +189,10 @@ remote: Permission to ... denied to github-actions[bot]
 
 **스크립트 실행 권한 오류**
 ```
-bash: permission denied: .github/scripts/version-manager.sh
+bash: permission denied: .github/scripts/version_manager.sh
 ```
 ```bash
-chmod +x .github/scripts/version-manager.sh
+chmod +x .github/scripts/version_manager.sh
 chmod +x .github/scripts/changelog_manager.py
 ```
 
