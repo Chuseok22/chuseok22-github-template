@@ -49,7 +49,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
-          ref: deploy
+          ref: main
 
       - name: Git 설정
         run: |
@@ -106,10 +106,9 @@ jobs:
             REPO_NAME=$(basename "${{ github.repository }}")
             VERSION="${{ steps.version_info.outputs.latest_version }}"
             
-            git commit -m "$REPO_NAME 버전 관리 : docs : v$VERSION README 버전 정보 업데이트"
+            git commit -m "$REPO_NAME 버전 관리 : docs : v$VERSION README 버전 정보 업데이트 [skip ci]"
             
-            # deploy → main 브랜치로 푸시하고, 강제 푸시하여 동기화
-            git push origin HEAD:deploy
+            # main 브랜치로만 푸시
             git push origin HEAD:main
             
             echo "✅ README.md 버전 정보 업데이트 완료"
