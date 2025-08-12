@@ -12,21 +12,15 @@ try:
 
         # 메타데이터 정보 추가
         metadata = data.get('metadata', {})
-        project_type = metadata.get('projectType', 'Unknown')
         current_version = metadata.get('currentVersion', 'Unknown')
         last_updated = metadata.get('lastUpdated', 'Unknown')
 
-        f.write(f"**프로젝트 타입:** {project_type}  \n")
         f.write(f"**현재 버전:** {current_version}  \n")
         f.write(f"**마지막 업데이트:** {last_updated}  \n\n")
         f.write("---\n\n")
 
         for release in data['releases']:
             f.write(f"## [{release['version']}] - {release['date']}\n\n")
-
-            # 프로젝트 타입 표시 (있는 경우)
-            if 'project_type' in release:
-                f.write(f"**프로젝트 타입:** {release['project_type']}  \n")
 
             # PR 번호 표시
             if 'pr_number' in release:

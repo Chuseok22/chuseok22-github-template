@@ -202,8 +202,30 @@ jobs:
           echo "📝 CodeRabbit Summary 동적 파싱 시작..."
           echo "📋 프로젝트 정보: $PROJECT_TYPE v$VERSION"
 
-          # Summary 섹션 추출
-          sed -n '/<h2[^>]*>Summary by CodeRabbit<\/h2>/,/<\/div>/p' pr_content.html > summary_section.html
+          # Summary 섹션 추출 (PR 본문 body_html을 직접 사용)
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          API_URL="https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}"
+
+          echo "PR 본문(body_html) 가져오기 시작..."
+          echo "GET $API_URL"
+          curl -sSf \
+               -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3.html+json" \
+               "$API_URL" > pr_body.json
+
+          echo "PR 본문 JSON 저장: pr_body.json ($(stat -c%s pr_body.json) bytes)"
+          echo "body_html 추출 (jq)"
+          jq -r '.body_html' pr_body.json > summary_section.html
+          echo "summary_section.html 생성: $(wc -c < summary_section.html) bytes"
+          echo "미리보기 (상위 30줄):"
+          head -n 30 summary_section.html || true
+          if [ ! -s summary_section.html ]; then
+            echo "body_html 추출 실패: summary_section.html 이 비어있습니다"
+            exit 1
+          fi
+          if ! grep -qi 'Summary by CodeRabbit' summary_section.html; then
+            echo "'Summary by CodeRabbit' 문구를 summary_section.html에서 찾지 못했습니다 (계속 진행)"
+          fi
 
           # 환경 변수 설정하고 Python 스크립트 실행
           export VERSION="$VERSION"
