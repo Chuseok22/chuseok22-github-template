@@ -1,11 +1,38 @@
 {
   "metadata": {
-    "lastUpdated": "2025-08-12T01:53:06Z",
-    "currentVersion": "0.0.2",
+    "lastUpdated": "2025-08-12T05:10:55Z",
+    "currentVersion": "0.0.4",
     "projectType": "basic",
-    "totalReleases": 1
+    "totalReleases": 2
   },
   "releases": [
+    {
+      "version": "0.0.4",
+      "project_type": "basic",
+      "date": "2025-08-12",
+      "pr_number": 25,
+      "raw_summary": "Summary by CodeRabbit\n\n문서\n\n자동 생성 체인지로그와 소스 안내 추가\n예시에서 특정 설정 파일이 선택 사항임을 명시\n시작 가이드에 복제 범위와 README 버전 표기 안내 보강\n워크플로우 트리거 설명 추가(자동 체인지로그, README 버전 자동 업데이트)\nREADME 버전 표기 형식 일반화\n경고 문구 제거 및 사용 흐름 간소화\n명령어·예제를 최신 관리 스크립트와 서브커맨드 기준으로 업데이트\n\n\n작업\n\n버전을 0.0.4로 업데이트",
+      "parsed_changes": {
+        "문서": {
+          "title": "문서",
+          "items": [
+            "자동 생성 체인지로그와 소스 안내 추가",
+            "예시에서 특정 설정 파일이 선택 사항임을 명시",
+            "시작 가이드에 복제 범위와 README 버전 표기 안내 보강",
+            "워크플로우 트리거 설명 추가(자동 체인지로그, README 버전 자동 업데이트)",
+            "README 버전 표기 형식 일반화",
+            "경고 문구 제거 및 사용 흐름 간소화",
+            "명령어·예제를 최신 관리 스크립트와 서브커맨드 기준으로 업데이트"
+          ]
+        },
+        "작업": {
+          "title": "작업",
+          "items": [
+            "버전을 0.0.4로 업데이트"
+          ]
+        }
+      }
+    },
     {
       "version": "0.0.2",
       "project_type": "basic",
