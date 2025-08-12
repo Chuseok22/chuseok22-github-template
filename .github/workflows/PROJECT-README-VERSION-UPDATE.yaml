@@ -3,11 +3,11 @@
 # ===================================================================
 #
 # 이 워크플로우는 deploy 브랜치로 푸시가 발생할 때 README.md 파일의
-# 버전 정보를 version-manager.sh를 통해 가져와 자동으로 업데이트합니다.
+# 버전 정보를 version_manager.sh를 통해 가져와 자동으로 업데이트합니다.
 #
 # 작동 방식:
 # 1. deploy 브랜치 푸시 시 트리거
-# 2. version-manager.sh를 통해 최신 버전 정보 추출
+# 2. version_manager.sh를 통해 최신 버전 정보 추출
 # 3. README.md 파일의 버전 정보 업데이트
 # 4. 변경사항 커밋 및 푸시
 #
@@ -56,14 +56,14 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-      - name: version-manager.sh를 통해 최신 버전 정보 가져오기
+      - name: version_manager.sh를 통해 최신 버전 정보 가져오기
         id: version_info
         run: |
           # 버전 관리 스크립트에 실행 권한 부여
-          chmod +x .github/scripts/version-manager.sh
+          chmod +x .github/scripts/version_manager.sh
           
-          # version-manager.sh를 통해 최신 버전 가져오기
-          LATEST_VERSION=$(.github/scripts/version-manager.sh get | tail -n 1)
+          # version_manager.sh를 통해 최신 버전 가져오기
+          LATEST_VERSION=$(.github/scripts/version_manager.sh get | tail -n 1)
           
           # 현재 날짜를 릴리즈 날짜로 사용
           RELEASE_DATE=$(date '+%Y-%m-%d')

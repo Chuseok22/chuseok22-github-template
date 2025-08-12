@@ -149,19 +149,19 @@ README.md 파일에 버전 정보가 자동으로 업데이트되려면 다음 �
 
 ## 🔧 스크립트 사용법
 
-### version-manager.sh
+### version_manager.sh
 
 버전 관리를 위한 쉘 스크립트
 
 ```bash
 # 현재 버전 확인
-.github/scripts/version-manager.sh get
+.github/scripts/version_manager.sh get
 
 # 패치 버전 증가 (1.0.0 → 1.0.1)
-.github/scripts/version-manager.sh increment
+.github/scripts/version_manager.sh increment
 
 # 특정 버전으로 설정
-.github/scripts/version-manager.sh set 2.0.0
+.github/scripts/version_manager.sh set 2.0.0
 ```
 
 ### changelog_manager.py
@@ -189,10 +189,10 @@ remote: Permission to ... denied to github-actions[bot]
 
 **스크립트 실행 권한 오류**
 ```
-bash: permission denied: .github/scripts/version-manager.sh
+bash: permission denied: .github/scripts/version_manager.sh
 ```
 ```bash
-chmod +x .github/scripts/version-manager.sh
+chmod +x .github/scripts/version_manager.sh
 chmod +x .github/scripts/changelog_manager.py
 ```
 

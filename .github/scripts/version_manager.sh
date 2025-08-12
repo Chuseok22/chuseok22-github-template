@@ -8,7 +8,7 @@
 # version.yml 파일의 설정에 따라 적절한 파일에서 버전을 읽고 업데이트합니다.
 #
 # 사용법:
-# ./version-manager.sh [command] [options]
+# ./version_manager.sh [command] [options]
 #
 # Commands:
 # - get: 현재 버전 가져오기
@@ -430,7 +430,7 @@ main() {
         "set")
             local new_version=$2
             if [ -z "$new_version" ]; then
-                echo_error "새 버전을 지정해주세요: ./version-manager.sh set 1.2.3"
+                echo_error "새 버전을 지정해주세요: ./version_manager.sh set 1.2.3"
                 exit 1
             fi
             
