@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "lastUpdated": "2025-08-12T01:53:06Z",
+    "currentVersion": "0.0.2",
+    "projectType": "basic",
+    "totalReleases": 1
+  },
+  "releases": [
+    {
+      "version": "0.0.2",
+      "project_type": "basic",
+      "date": "2025-08-12",
+      "pr_number": 24,
+      "raw_summary": "Summary by CodeRabbit\n\n\nDocumentation\n\n기여 가이드 간소화: 개발 환경/브랜치 전략/프로세스/예시 등 방대한 섹션을 정리하고 커밋 메시지 가이드라인을 간결화했습니다.\n라이선스 섹션 표기 일관성 개선(맞춤법 수정).\n\n\n\nChores\n\n애플리케이션 버전 업데이트: 0.0.1 → 0.0.2.",
+      "parsed_changes": {
+        "documentation": {
+          "title": "Documentation",
+          "items": [
+            "기여 가이드 간소화: 개발 환경/브랜치 전략/프로세스/예시 등 방대한 섹션을 정리하고 커밋 메시지 가이드라인을 간결화했습니다.",
+            "라이선스 섹션 표기 일관성 개선(맞춤법 수정)."
+          ]
+        },
+        "chores": {
+          "title": "Chores",
+          "items": [
+            "애플리케이션 버전 업데이트: 0.0.1 → 0.0.2."
+          ]
+        }
+      }
+    }
+  ]
+}
