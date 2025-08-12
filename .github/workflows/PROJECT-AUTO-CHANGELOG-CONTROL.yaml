@@ -184,12 +184,14 @@ jobs:
         with:
           name: pr-content
 
-      - name: Python 스크립트 실행 권한 설정
+      - name: Python 스크립트 실행 권한 설정 (manager)
         run: |
-          # 파이썬 스크립트 실행 권한 설정
-          chmod +x .github/scripts/changelog_parser.py
-          chmod +x .github/scripts/changelog_generator.py
-          echo "✅ Python 스크립트 실행 권한 설정 완료"
+          if [ -f ".github/scripts/changelog_manager.py" ]; then
+            chmod +x .github/scripts/changelog_manager.py
+            echo "✅ changelog_manager.py 실행 권한 설정 완료"
+          else
+            echo "⚠️ .github/scripts/changelog_manager.py 파일을 찾을 수 없습니다."
+          fi
 
       - name: 동적 Summary 파싱 및 CHANGELOG.json 업데이트
         run: |
@@ -234,14 +236,13 @@ jobs:
           export PR_NUMBER="$PR_NUMBER"
           export TIMESTAMP="$TIMESTAMP"
 
-          # .github/scripts/changelog_parser.py 실행
-          python3 .github/scripts/changelog_parser.py
+          # 통합 체인지로그 매니저 실행
+          python3 .github/scripts/changelog_manager.py update-from-summary
 
       - name: CHANGELOG.md 재생성
         run: |
           echo "📄 CHANGELOG.json에서 CHANGELOG.md 재생성 중..."
-          # .github/scripts/changelog_generator.py 실행
-          python3 .github/scripts/changelog_generator.py
+          python3 .github/scripts/changelog_manager.py generate-md
 
       - name: 변경사항 커밋 및 푸시
         run: |
