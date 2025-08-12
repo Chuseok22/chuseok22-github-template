@@ -22,7 +22,7 @@
 # - https://github.com/Cassiiopeia/suh-github-template
 # ===================================================================
 
-version: "0.0.7"
+version: "0.0.8"
 project_type: "basic" # spring, flutter, react, react-native, react-native-expo, node, basic 등
 version_file: "version.yml" # 버전 정보가 저장된 파일 경로
 # 프로젝트 타입별 버전 파일 매핑
