@@ -5,6 +5,8 @@
 
 [전체 버전 기록 보기](CHANGELOG.md)
 
+_참고: `CHANGELOG.md`는 자동 생성됩니다. 수동으로 수정하지 마세요. 변경 소스는 `CHANGELOG.json`입니다._
+
 개요
 ---
 
@@ -77,10 +79,10 @@
    ```
    .github/               # 워크플로우 및 스크립트 디렉토리
    version.yml            # 프로젝트 버전 정보 파일
-   .coderabbit.yaml       # CodeRabbit AI 설정 파일
+   .coderabbit.yaml       # CodeRabbit AI 설정 파일 (선택)
    ```
 
-   - 다음 3개의 파일만 복제하면됩니다 + README.md 파일에서 "## 최신 버전 : v0.0.2 (2025-08-12)
+   - 위 3개 파일만 복제하면 됩니다. 또한 `README.md`에 버전 표시 영역(아래 "README 버전 자동 업데이트 설정" 참고)을 포함하세요.
 
 <img width="186" height="269" alt="image" src="https://github.com/user-attachments/assets/7fbaacf7-3710-416a-b7a7-a4af84cafd48" />
 
@@ -132,18 +134,18 @@
 
 **중요**: `main`과 `deploy` 브랜치 모두에 모든 워크플로우 파일이 존재해야 합니다. 특히 `deploy` 브랜치에 누락된 CI/CD 파일이 있으면 자동화 시스템이 제대로 작동하지 않습니다.
 
+- 자동 체인지로그(PR→deploy 트리거)는 변경사항을 `main` 브랜치로 커밋/푸시합니다.
+- README 버전 자동 업데이트(deploy 푸시 트리거)는 `deploy`와 `main` 모두로 푸시합니다.
+
 ## ⚙️ 자동화 설정 가이드
 
 ### README 버전 자동 업데이트 설정
 README.md 파일에 버전 정보가 자동으로 업데이트되려면 다음 형식을 정확히 따라야 합니다:
 
 ```markdown
-# 프로젝트명
 <!-- 수정하지마세요 자동으로 동기화 됩니다 -->
-## 최신 버전 : v0.0.2 (2025-08-12)
+## 최신 버전 : vX.Y.Z (YYYY-MM-DD)
 ```
-
-⚠️ **중요**: `## 최신 버전 : v0.0.2 (2025-08-12)
 
 ## 🔧 스크립트 사용법
 
@@ -162,25 +164,19 @@ README.md 파일에 버전 정보가 자동으로 업데이트되려면 다음 �
 .github/scripts/version-manager.sh set 2.0.0
 ```
 
-### changelog_parser.py
+### changelog_manager.py
 
-CodeRabbit AI 리뷰에서 변경사항을 파싱하는 스크립트
-
-```bash
-# 환경변수 설정 후 실행
-export VERSION="1.0.0"
-export PROJECT_TYPE="spring"
-export PR_NUMBER="123"
-python3 .github/scripts/changelog_parser.py
-```
-
-### changelog_generator.py
-
-CHANGELOG.json에서 마크다운 형식의 CHANGELOG.md 생성
+통합 체인지로그 스크립트
 
 ```bash
-# CHANGELOG.json 파일이 존재해야 함
-python3 .github/scripts/changelog_generator.py
+# CodeRabbit Summary HTML 파싱 → CHANGELOG.json 갱신 (워크플로우 내부에서 사용)
+python3 .github/scripts/changelog_manager.py update-from-summary
+
+# CHANGELOG.md 재생성
+python3 .github/scripts/changelog_manager.py generate-md
+
+# 특정 버전 릴리즈 노트 추출
+python3 .github/scripts/changelog_manager.py export --version 1.2.3 --output release_notes.txt
 ```
 
 ## ⚠️ 문제 해결
@@ -197,8 +193,7 @@ bash: permission denied: .github/scripts/version-manager.sh
 ```
 ```bash
 chmod +x .github/scripts/version-manager.sh
-chmod +x .github/scripts/changelog_parser.py
-chmod +x .github/scripts/changelog_generator.py
+chmod +x .github/scripts/changelog_manager.py
 ```
 
 ## 🤝 기여하기
