@@ -287,17 +287,55 @@ jobs:
           GH_TOKEN: ${{ secrets._GITHUB_PAT_TOKEN }}
         run: |
           PR_HEAD=$(gh pr view ${{ github.event.pull_request.number }} --json headRefName -q .headRefName)
+          PR_BASE=$(gh pr view ${{ github.event.pull_request.number }} --json baseRefName -q .baseRefName)
+          
+          echo "PR head branch: $PR_HEAD"
+          echo "PR base branch: $PR_BASE"
+          
+          # Checkout the PR head branch
           git fetch origin $PR_HEAD
           git checkout $PR_HEAD
-          git fetch origin deploy:deploy
-          git merge --no-edit deploy || true
+          
+          # Make sure we have the latest from the base branch
+          git fetch origin $PR_BASE
+          
+          # Update PR head branch with latest from base branch
+          git merge --no-edit origin/$PR_BASE || true
           git push origin HEAD
 
       - name: 자동 PR Merge
         env:
           GH_TOKEN: ${{ secrets._GITHUB_PAT_TOKEN }}
         run: |
-          gh pr merge ${{ github.event.pull_request.number }} --merge --admin --body "auto-merge after rebasing"
+          # PR 상태 확인
+          PR_STATE=$(gh pr view ${{ github.event.pull_request.number }} --json state,mergeable -q '.state + "," + (.mergeable | tostring)')
+          PR_STATE_VALUE=$(echo "$PR_STATE" | cut -d',' -f1)
+          PR_MERGEABLE=$(echo "$PR_STATE" | cut -d',' -f2)
+          
+          echo "PR 상태: $PR_STATE_VALUE (병합 가능: $PR_MERGEABLE)"
+          
+          # PR이 이미 닫혔거나 병합되었는지 확인
+          if [ "$PR_STATE_VALUE" = "CLOSED" ] || [ "$PR_STATE_VALUE" = "MERGED" ]; then
+            echo "PR이 이미 닫혔거나 병합되었습니다. 건너뜁니다."
+          else
+            # PR 머지 시도
+            if [ "$PR_MERGEABLE" = "true" ]; then
+              echo "PR을 병합합니다..."
+              gh pr merge ${{ github.event.pull_request.number }} --merge --admin --delete-branch=false
+              echo "PR이 성공적으로 병합되었습니다."
+            else
+              echo "PR을 병합할 수 없습니다. 직접 변경사항을 적용합니다."
+              # deploy 브랜치로 직접 변경사항 푸시
+              git checkout deploy
+              git pull origin deploy
+              git merge --no-edit $PR_HEAD
+              git push origin deploy
+          
+              # PR 병합 처리 시도
+              gh pr merge ${{ github.event.pull_request.number }} --merge --admin --delete-branch=false || \
+              gh pr comment ${{ github.event.pull_request.number }} --body "GITHUB-ACTIONS-AUTO-CHANGELOG: 변경사항이 자동으로 deploy 브랜치에 적용되었습니다."
+            fi
+          fi
 
       - name: 배포 완료 알림
         run: |

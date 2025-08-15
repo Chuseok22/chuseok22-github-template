@@ -80,81 +80,19 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
-          # 변경된 파일들 확인
-          CHANGED_FILES=""
-          PROJECT_TYPE="${{ steps.project_info.outputs.project_type }}"
-          
-          # version.yml은 항상 포함
-          if [ -f "version.yml" ]; then
-            CHANGED_FILES="version.yml"
-          fi
-          
-                        # 프로젝트 타입별 파일 추가
-          case "$PROJECT_TYPE" in
-            "spring")
-              if [ -f "build.gradle" ]; then
-                CHANGED_FILES="$CHANGED_FILES build.gradle"
-              fi
-              ;;
-            "flutter")
-              if [ -f "pubspec.yaml" ]; then
-                CHANGED_FILES="$CHANGED_FILES pubspec.yaml"
-              fi
-              ;;
-            "react"|"node")
-              if [ -f "package.json" ]; then
-                CHANGED_FILES="$CHANGED_FILES package.json"
-              fi
-              ;;
-            "react-native")
-              if [ -f "package.json" ]; then
-                CHANGED_FILES="$CHANGED_FILES package.json"
-              fi
-              # React Native 플랫폼별 파일들도 추가
-              if [ -f "android/app/build.gradle" ]; then
-                CHANGED_FILES="$CHANGED_FILES android/app/build.gradle"
-              fi
-              # iOS Info.plist 파일들 찾기
-              find ios -name "Info.plist" -type f 2>/dev/null | while read plist_file; do
-                CHANGED_FILES="$CHANGED_FILES $plist_file"
-              done
-              ;;
-            "react-native-expo")
-              if [ -f "app.json" ]; then
-                CHANGED_FILES="$CHANGED_FILES app.json"
-              fi
-              ;;
-            "python")
-              if [ -f "pyproject.toml" ]; then
-                CHANGED_FILES="$CHANGED_FILES pyproject.toml"
-              fi
-              ;;
-            "basic")
-              echo "📌 기본 타입 프로젝트: version.yml만 관리합니다"
-              ;;
-          esac
-          
-          echo "변경된 파일들: $CHANGED_FILES"
-          
-          # 파일들 스테이징
-          if [ -n "$CHANGED_FILES" ]; then
-            git add $CHANGED_FILES
-            
-            # 변경사항이 있는지 확인
-            if git diff --staged --quiet; then
-              echo "📝 변경사항이 없습니다."
-            else
-              # 커밋 메시지 생성
-              REPO_NAME=$(basename "${{ github.repository }}")
-              COMMIT_MSG="$REPO_NAME 버전 정보 관리 : chore: 버전 ${{ steps.version.outputs.new_version }} [skip ci]"
-              
-              git commit -m "$COMMIT_MSG" || exit 0
-              git push
-              echo "✅ 버전 업데이트 커밋 완료"
-            fi
+
+          # 모든 변경 스테이징 (루트/하위 모듈 포함)
+          git add -A
+
+          # 변경사항 확인 후 커밋/푸시
+          if git diff --staged --quiet; then
+            echo "📝 변경사항이 없습니다."
           else
-            echo "⚠️ 커밋할 파일을 찾을 수 없습니다."
+            REPO_NAME=$(basename "${{ github.repository }}")
+            COMMIT_MSG="$REPO_NAME 버전 정보 관리 : chore: 버전 ${{ steps.version.outputs.new_version }} [skip ci]"
+            git commit -m "$COMMIT_MSG" || exit 0
+            git push
+            echo "✅ 버전 업데이트 커밋 완료"
           fi
 
       - name: Git 태그 생성
