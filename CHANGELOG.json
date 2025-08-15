@@ -1,11 +1,43 @@
 {
   "metadata": {
-    "lastUpdated": "2025-08-12T08:06:08Z",
-    "currentVersion": "1.0.0",
-    "projectType": "unknown",
-    "totalReleases": 4
+    "lastUpdated": "2025-08-15T15:20:45Z",
+    "currentVersion": "1.0.3",
+    "projectType": "basic",
+    "totalReleases": 5
   },
   "releases": [
+    {
+      "version": "1.0.3",
+      "project_type": "basic",
+      "date": "2025-08-15",
+      "pr_number": 30,
+      "raw_summary": "Summary by CodeRabbit\n\n\nNew Features\n\n자동 버전 동기화 범위 확대(스프링 멀티모듈·React Native·Expo) 및 형식 검증 강화\nREADME 버전 표기 유연화(다양한 헤더 감지)와 날짜 표시 토글 추가\nPR 자동 머지 로직 고도화(병합 가능 여부 판단, 대체 경로 적용) 및 베이스 브랜치 동기화\n\n\n\nDocumentation\n\n기능/버그 정리용 표준 템플릿 추가\nREADME 최신 버전 표기 갱신\n\n\n\nChores\n\n버전 1.0.3로 업데이트\n변경사항 자동 스테이징으로 커밋/푸시 흐름 간소화\n이슈 코멘트 실패 안내 문구 보강",
+      "parsed_changes": {
+        "new_features": {
+          "title": "New Features",
+          "items": [
+            "자동 버전 동기화 범위 확대(스프링 멀티모듈·React Native·Expo) 및 형식 검증 강화",
+            "README 버전 표기 유연화(다양한 헤더 감지)와 날짜 표시 토글 추가",
+            "PR 자동 머지 로직 고도화(병합 가능 여부 판단, 대체 경로 적용) 및 베이스 브랜치 동기화"
+          ]
+        },
+        "documentation": {
+          "title": "Documentation",
+          "items": [
+            "기능/버그 정리용 표준 템플릿 추가",
+            "README 최신 버전 표기 갱신"
+          ]
+        },
+        "chores": {
+          "title": "Chores",
+          "items": [
+            "버전 1.0.3로 업데이트",
+            "변경사항 자동 스테이징으로 커밋/푸시 흐름 간소화",
+            "이슈 코멘트 실패 안내 문구 보강"
+          ]
+        }
+      }
+    },
     {
       "version": "1.0.0",
       "project_type": "unknown",
