@@ -82,7 +82,7 @@ read_version_config() {
     echo "현재 버전: $CURRENT_VERSION"
 }
 
-# 버전 비교 함수 (v1 > v2이면 1 반환, v1 < v2이면 -1 반환, 같으면 0 반환)
+# 버전 비교 함수 (반환코드: 0 = 같음, 1 = v1>v2, 2 = v1<v2)
 compare_versions() {
     local v1=$1
     local v2=$2
@@ -91,31 +91,123 @@ compare_versions() {
     IFS='.' read -ra v1_parts <<< "$v1"
     IFS='.' read -ra v2_parts <<< "$v2"
     
-    # 각 부분을 비교
+    # 각 부분을 10진수로 명시적 변환 후 비교 (앞의 0 제거)
     for i in 0 1 2; do
-        if [ "${v1_parts[$i]}" -gt "${v2_parts[$i]}" ]; then
+        local a=$(echo "${v1_parts[$i]:-0}" | sed 's/^0*//')
+        local b=$(echo "${v2_parts[$i]:-0}" | sed 's/^0*//')
+        
+        # 빈 문자열이면 0으로 설정 (모든 0이 제거된 경우)
+        a=${a:-0}
+        b=${b:-0}
+        
+        if [ "$a" -gt "$b" ]; then
             return 1  # v1이 더 큼
-        elif [ "${v1_parts[$i]}" -lt "${v2_parts[$i]}" ]; then
-            return -1  # v2가 더 큼
+        elif [ "$a" -lt "$b" ]; then
+            return 2  # v2가 더 큼
         fi
     done
     
     return 0  # 동일함
 }
 
-# 두 버전 중 높은 버전 반환
+# 두 버전 중 높은 버전 반환 (같거나 v1이 크면 v1, v2가 크면 v2)
 get_higher_version() {
     local v1=$1
     local v2=$2
     
-    compare_versions "$v1" "$v2"
-    result=$?
+    # 단순 문자열 비교 로직으로 직접 구현
+    # major.minor.patch 부분을 숫자로 변환하여 비교
+    local v1_major=$(echo "$v1" | cut -d. -f1 | sed 's/^0*//')
+    local v1_minor=$(echo "$v1" | cut -d. -f2 | sed 's/^0*//')
+    local v1_patch=$(echo "$v1" | cut -d. -f3 | sed 's/^0*//')
     
-    if [ $result -eq 1 ] || [ $result -eq 0 ]; then
-        echo "$v1"  # v1이 더 높거나 같음
-    else
-        echo "$v2"  # v2가 더 높음
+    local v2_major=$(echo "$v2" | cut -d. -f1 | sed 's/^0*//')
+    local v2_minor=$(echo "$v2" | cut -d. -f2 | sed 's/^0*//')
+    local v2_patch=$(echo "$v2" | cut -d. -f3 | sed 's/^0*//')
+    
+    # 빈 문자열이면 0으로 설정
+    v1_major=${v1_major:-0}
+    v1_minor=${v1_minor:-0}
+    v1_patch=${v1_patch:-0}
+    v2_major=${v2_major:-0}
+    v2_minor=${v2_minor:-0}
+    v2_patch=${v2_patch:-0}
+    
+    echo "⚙️ 버전 비교: '$v1' vs '$v2'" >&2
+    echo "  $v1_major.$v1_minor.$v1_patch vs $v2_major.$v2_minor.$v2_patch" >&2
+    
+    # Major 버전 비교
+    if [ "$v1_major" -gt "$v2_major" ]; then
+        echo "  → 첫번째 버전이 더 높습니다 (major): '$v1' > '$v2'" >&2
+        echo "$v1"
+        return
+    elif [ "$v1_major" -lt "$v2_major" ]; then
+        echo "  → 두번째 버전이 더 높습니다 (major): '$v1' < '$v2'" >&2
+        echo "$v2"
+        return
     fi
+    
+    # Minor 버전 비교 (Major가 같을 경우)
+    if [ "$v1_minor" -gt "$v2_minor" ]; then
+        echo "  → 첫번째 버전이 더 높습니다 (minor): '$v1' > '$v2'" >&2
+        echo "$v1"
+        return
+    elif [ "$v1_minor" -lt "$v2_minor" ]; then
+        echo "  → 두번째 버전이 더 높습니다 (minor): '$v1' < '$v2'" >&2
+        echo "$v2"
+        return
+    fi
+    
+    # Patch 버전 비교 (Major, Minor가 같을 경우)
+    if [ "$v1_patch" -gt "$v2_patch" ]; then
+        echo "  → 첫번째 버전이 더 높습니다 (patch): '$v1' > '$v2'" >&2
+        echo "$v1"
+        return
+    elif [ "$v1_patch" -lt "$v2_patch" ]; then
+        echo "  → 두번째 버전이 더 높습니다 (patch): '$v1' < '$v2'" >&2
+        echo "$v2"
+        return
+    fi
+    
+    # 두 버전이 완전히 같은 경우
+    echo "  → 두 버전이 동일합니다: '$v1'" >&2
+    echo "$v1"
+}
+
+# 프로젝트 파일의 실제 버전만 감지 (정책 적용 전, 원본값)
+detect_project_version() {
+    local project_version="$CURRENT_VERSION"
+
+    case "$PROJECT_TYPE" in
+        "spring")
+            if [ -f "$VERSION_FILE" ]; then
+                # 들여쓰기/공백/따옴표 모두 허용하여 version = 'x.y.z' 또는 "x.y.z" 추출
+                project_version=$(sed -nE "s/^[[:space:]]*version[[:space:]]*=[[:space:]]*['\"]([0-9]+\.[0-9]+\.[0-9]+)['\"][[:space:]]*.*/\1/p" "$VERSION_FILE" | head -1)
+                [ -z "$project_version" ] && project_version="$CURRENT_VERSION"
+                
+                echo "🔍 build.gradle에서 감지한 버전: '$project_version'" >&2
+                
+                # version.yml 파일의 버전 확인
+                if [ -f "version.yml" ]; then
+                    local yml_version=$(grep -E "^version:" version.yml | sed 's/version: *"\([^"]*\)".*/\1/' | head -1)
+                    echo "🔍 version.yml에서 감지한 버전: '$yml_version'" >&2
+                    
+                    if [ -n "$yml_version" ] && [ "$yml_version" != "$project_version" ]; then
+                        # 두 버전 비교
+                        local higher_version=$(get_higher_version "$project_version" "$yml_version")
+                        echo "🔄 버전 비교 결과: 높은 버전은 '$higher_version'" >&2
+                        project_version="$higher_version"
+                    fi
+                fi
+            fi
+            ;;
+        *)
+            # 다른 타입은 기존 로직 유지(필요 시 확장)
+            project_version="$CURRENT_VERSION"
+            ;;
+    esac
+
+    echo "$project_version"
 }
 
 # 실제 프로젝트 파일에서 버전 추출
@@ -222,8 +314,21 @@ get_version_from_project_file() {
 
     # 프로젝트 파일 버전과 version.yml 버전 중 높은 버전 선택
     if [ -n "$PROJECT_VERSION" ] && [ "$PROJECT_VERSION" != "$CURRENT_VERSION" ]; then
+        echo "🔍 버전 불일치 감지: 프로젝트($PROJECT_VERSION) vs version.yml($CURRENT_VERSION)"
+        
+        if ! validate_version "$PROJECT_VERSION"; then
+            echo "⚠️ 프로젝트 버전 형식 오류: '$PROJECT_VERSION' (x.y.z 형식이어야 함)"
+            echo "$CURRENT_VERSION"
+            return
+        fi
+        
+        if ! validate_version "$CURRENT_VERSION"; then
+            echo "⚠️ version.yml 버전 형식 오류: '$CURRENT_VERSION' (x.y.z 형식이어야 함)"
+            echo "$PROJECT_VERSION"
+            return
+        fi
+        
         FINAL_VERSION=$(get_higher_version "$PROJECT_VERSION" "$CURRENT_VERSION")
-        echo "버전 불일치 감지: 프로젝트($PROJECT_VERSION) vs version.yml($CURRENT_VERSION)"
         echo "✅ 높은 버전으로 동기화: $FINAL_VERSION"
         echo "$FINAL_VERSION"
     else
@@ -347,9 +452,13 @@ update_project_file() {
 
     case "$PROJECT_TYPE" in
         "spring")
-            # build.gradle 업데이트
-            sed -i.bak "s/version = '.*'/version = '$new_version'/" "$VERSION_FILE"
-            rm -f "${VERSION_FILE}.bak"
+            # 모든 모듈의 build.gradle 업데이트 (루트 포함)
+            for f in $(find . -maxdepth 2 -name build.gradle -type f); do
+                echo "  📝 파일 업데이트 중: $f"
+                sed -i.bak "s/version = '.*'/version = '$new_version'/" "$f" 2>/dev/null || true
+                sed -i.bak "s/version = \".*\"/version = \"$new_version\"/" "$f" 2>/dev/null || true
+                rm -f "$f.bak" 2>/dev/null
+            done
             ;;
         "flutter")
             # pubspec.yaml 업데이트 (x.x.x 형식 버전 업데이트)
@@ -412,18 +521,62 @@ main() {
             echo "$version"
             ;;
         "increment")
-            # 실제 프로젝트 파일에서 현재 버전 가져오기
+            # 먼저 수동으로 변경된 버전 감지 (version.yml vs build.gradle 비교)
+            echo_info "버전 동기화 점검 중..."
+            # version.yml에서 버전 가져오기
+            local yml_version=""
+            if [ -f "version.yml" ]; then
+                yml_version=$(grep -E "^version:" version.yml | sed 's/version: *"\([^"\)]*\)".*/\1/' | head -1)
+                echo "🔍 version.yml 버전: $yml_version"
+            fi
+            
+            # build.gradle에서 버전 가져오기
+            local gradle_version=""
+            if [ -f "build.gradle" ]; then
+                gradle_version=$(sed -nE "s/^[[:space:]]*version[[:space:]]*=[[:space:]]*['\"]([0-9]+\.[0-9]+\.[0-9]+)['\"][[:space:]]*.*/\1/p" build.gradle | head -1)
+                echo "🔍 build.gradle 버전: $gradle_version"
+            fi
+            
+            # 수동 업데이트 감지: 두 버전이 다르면 높은 버전 선택
+            if [ -n "$yml_version" ] && [ -n "$gradle_version" ] && [ "$yml_version" != "$gradle_version" ]; then
+                echo "📊 버전 불일치 감지: version.yml($yml_version) vs build.gradle($gradle_version)"
+                # 두 버전 중 높은 버전 선택
+                local higher_version=$(get_higher_version "$yml_version" "$gradle_version")
+                
+                # 높은 버전으로 양쪽 모두 동기화
+                echo_info "버전 동기화: $higher_version"
+                # version.yml 업데이트
+                update_version_yml "$higher_version"
+                CURRENT_VERSION="$higher_version"
+                
+                # build.gradle 업데이트 (루트 및 모든 하위 모듈)
+                for f in $(find . -maxdepth 2 -name build.gradle -type f); do
+                    echo "  📝 버전 업데이트 중: $f"
+                    sed -i.bak "s/version = '.*'/version = '$higher_version'/" "$f" 2>/dev/null || true
+                    sed -i.bak "s/version = \".*\"/version = \"$higher_version\"/" "$f" 2>/dev/null || true
+                    rm -f "$f.bak" 2>/dev/null
+                done
+                
+                echo "✅ 버전 동기화 완료: $higher_version"
+            fi
+            
+            # 실제 프로젝트 파일에서 현재 버전 가져오기 (동기화 이후)
             local current_version=$(get_version_from_project_file)
+            echo_info "감지된 현재 버전: $current_version"
+            
             if ! validate_version "$current_version"; then
                 echo_error "잘못된 버전 형식: $current_version"
                 exit 1
             fi
             
+            # 패치 버전 증가
             local new_version=$(increment_patch_version "$current_version")
             echo_info "버전 업데이트: $current_version → $new_version"
             
             # 프로젝트 파일과 version.yml 모두 업데이트
             update_project_file "$new_version"
+            # 최종 확인용 출력 (CI 로그 수집)
+            echo "UPDATED_VERSION=$new_version"
             echo_success "버전 업데이트 완료: $new_version"
             echo "$new_version"
             ;;
