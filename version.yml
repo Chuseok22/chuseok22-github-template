@@ -3,64 +3,31 @@
 # ===================================================================
 #
 # 이 파일은 다양한 프로젝트 타입에서 버전 정보를 중앙 관리하기 위한 파일
-# GitHub Actions 워크플로우 이 파일을 읽어 자동으로 버전을 관리
+# GitHub Actions 워크플로우가 이 파일을 읽어 자동으로 버전을 관리
 #
 # 사용법:
-# 1. version: 현재 프로젝트 버전 (semantic versioning 형식)
-# 2. project_type: 프로젝트 타입 (spring, flutter, react, node, python 등)
-# 3. version_file: 각 프로젝트 타입별 실제 버전이 저장된 파일 경로
+# 1. version: 프로젝트 버전 (x.y.z 형식)
+# 2. project_type: 프로젝트 타입 지정
 #
 # 자동 버전 업데이트:
 # - patch: 자동으로 세 번째 자리 증가 (x.x.x -> x.x.x+1)
 # - minor/major: 수동으로 직접 수정 필요
 #
+# 프로젝트 타입별 동기화 파일:
+# - spring: build.gradle (version = "x.y.z")
+# - flutter: pubspec.yaml (version: x.y.z)
+# - react/node: package.json ("version": "x.y.z")
+# - react-native: iOS Info.plist 또는 Android build.gradle
+# - react-native-expo: app.json (expo.version)
+# - basic/기타: version.yml 파일만 사용
+#
 # 주의사항:
-# - project_type만 최초 1회 지정 후, 직접 수정하지 마세요! (수정 시 예기치 않은 오류 발생 가능)
-# - 이 파일은 GitHub Actions 워크플로우에서 사용 및 자동으로 관리됩니다.
-# ===================================================================
-# 공식 GitHub 레포지토리:
-# - https://github.com/Cassiiopeia/suh-github-template
+# - project_type은 최초 설정 후 변경하지 마세요
+# - 버전은 항상 높은 버전으로 자동 동기화됩니다
 # ===================================================================
 
 version: "1.0.3"
-project_type: "basic" # spring, flutter, react, react-native, react-native-expo, node, basic 등
-version_file: "version.yml" # 버전 정보가 저장된 파일 경로
-# 프로젝트 타입별 버전 파일 매핑
-# 실제 프로젝트에서는 해당하는 타입의 설정만 사용
-project_configs:
-  spring:
-    version_file: "build.gradle"
-    version_pattern: "version = '"
-    version_format: "version = '{version}'"
-  flutter:
-    version_file: "pubspec.yaml"
-    version_pattern: "version: "
-    version_format: "version: {version}+1"
-  react:
-    version_file: "package.json"
-    version_pattern: '"version":'
-    version_format: '"version": "{version}"'
-  react-native:
-    version_file: "ios/*/Info.plist" # iOS가 우선
-    android_file: "android/app/build.gradle"
-    version_pattern: "CFBundleShortVersionString"
-    version_format: 'CFBundleShortVersionString'
-  react-native-expo:
-    version_file: "app.json"
-    version_pattern: '"expo".*"version":'
-    version_format: '"expo": {"version": "{version}"}'
-  node:
-    version_file: "package.json"
-    version_pattern: '"version":'
-    version_format: '"version": "{version}"'
-  basic:
-    version_file: "version.yml"
-    version_pattern: "version: "
-    version_format: 'version: "{version}"'
-    # basic 타입은 특정 프레임워크에 종속되지 않는 기본 타입으로, version.yml만 관리합니다
-# 메타데이터
+project_type: "basic" # spring, flutter, react, react-native, react-native-expo, node, basic
 metadata:
-  last_updated: "2025-08-08 10:54:30"
+  last_updated: "2025-08-19 11:46:32"
   last_updated_by: "Cassiiopeia"
-  auto_increment: true # patch 버전 자동 증가 여부
-  changelog_enabled: true # 체인지로그 자동 생성 여부
