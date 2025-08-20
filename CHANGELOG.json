@@ -1,11 +1,42 @@
 {
   "metadata": {
-    "lastUpdated": "2025-08-15T15:20:45Z",
-    "currentVersion": "1.0.3",
+    "lastUpdated": "2025-08-20T04:20:43Z",
+    "currentVersion": "1.0.4",
     "projectType": "basic",
-    "totalReleases": 5
+    "totalReleases": 6
   },
   "releases": [
+    {
+      "version": "1.0.4",
+      "project_type": "basic",
+      "date": "2025-08-20",
+      "pr_number": 31,
+      "raw_summary": "Summary by CodeRabbit\n\n\nNew Features\n\n버전 관리자 기능 강화: 다중 프로젝트 유형 지원, 양방향 버전 동기화, 증분/설정/검증 명령 추가, 엄격 실행과 개선된 로그.\nGitHub Actions v2.0: 자동 동기화, 안전한 커밋·태그 처리, 상세 완료 요약 출력.\n\n\n\nDocumentation\n\n버전 관리자 사용 안내 문서 추가.\nREADME 최신 버전 표기 및 사용 예 갱신.\n워크플로우 가이드 업데이트.\n\n\n\nChores\n\n버전 설정 구조 단순화 및 메타데이터 도입.\n애플리케이션 버전 1.0.4로 업데이트.",
+      "parsed_changes": {
+        "new_features": {
+          "title": "New Features",
+          "items": [
+            "버전 관리자 기능 강화: 다중 프로젝트 유형 지원, 양방향 버전 동기화, 증분/설정/검증 명령 추가, 엄격 실행과 개선된 로그.",
+            "GitHub Actions v2.0: 자동 동기화, 안전한 커밋·태그 처리, 상세 완료 요약 출력."
+          ]
+        },
+        "documentation": {
+          "title": "Documentation",
+          "items": [
+            "버전 관리자 사용 안내 문서 추가.",
+            "README 최신 버전 표기 및 사용 예 갱신.",
+            "워크플로우 가이드 업데이트."
+          ]
+        },
+        "chores": {
+          "title": "Chores",
+          "items": [
+            "버전 설정 구조 단순화 및 메타데이터 도입.",
+            "애플리케이션 버전 1.0.4로 업데이트."
+          ]
+        }
+      }
+    },
     {
       "version": "1.0.3",
       "project_type": "basic",
