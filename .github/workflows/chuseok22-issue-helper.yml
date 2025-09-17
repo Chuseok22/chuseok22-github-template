@@ -4,6 +4,10 @@ on:
   issues:
     types: [opened, edited]
 
+permissions:
+  issues: write
+  contents: read
+
 jobs:
   generate-commit:
     if: github.event.action == 'opened' || (github.event.action == 'edited' && github.event.changes.title)
