@@ -43,7 +43,7 @@ jobs:
       - name: CodeRabbit Summary 요청 댓글 달기
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
-          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          curl -s -H "Authorization: token ${{ secrets._GITHUB_PAT_TOKEN }}" \
                -X POST \
                -d "{\"body\": \"@coderabbit summary\"}" \
                "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments"

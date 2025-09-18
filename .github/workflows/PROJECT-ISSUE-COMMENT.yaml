@@ -54,8 +54,8 @@ jobs:
           set -euo pipefail
           STATUS='${{ steps.api-call.outputs.status }}'
           BODY='${{ steps.api-call.outputs.body }}'
-          if [ "${STATUS}" = "200" ]; then
-            echo "API call successful"
+          if [[ "${STATUS}" =~ ^2[0-9][0-9]$ ]]; then
+            echo "API call successful (status: ${STATUS})"
             MARKDOWN=$(printf '%s' "${BODY}" | jq -e -r '.commentMarkdown')
             DELIM="GHENV_$(date +%s%N)"
             {
