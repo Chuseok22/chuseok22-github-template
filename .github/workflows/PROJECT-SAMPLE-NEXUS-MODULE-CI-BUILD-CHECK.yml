@@ -83,7 +83,7 @@ jobs:
         COMPILE_STATUS="✅ 성공"
         TEST_STATUS="✅ 성공"
         BUILD_STATUS="✅ 성공"
-       j 
+        
         # 컴파일 상태 확인
         COMPILE_EXIT_CODE="${{ steps.compile.outputs.compile_exit_code }}"
         if [ "$COMPILE_EXIT_CODE" != "0" ] && [ "$COMPILE_EXIT_CODE" != "" ]; then
