@@ -1,11 +1,36 @@
 {
   "metadata": {
-    "lastUpdated": "2025-09-18T23:58:21Z",
-    "currentVersion": "1.0.6",
+    "lastUpdated": "2025-09-20T17:19:38Z",
+    "currentVersion": "1.0.9",
     "projectType": "basic",
-    "totalReleases": 8
+    "totalReleases": 9
   },
   "releases": [
+    {
+      "version": "1.0.9",
+      "project_type": "basic",
+      "date": "2025-09-20",
+      "pr_number": 38,
+      "raw_summary": "Summary by CodeRabbit\n\n문서화\n\nREADME 최신 버전 표기를 v1.0.6(2025-09-18)로 업데이트.\n\n\nChores\n\nGitHub Actions 개선: PR 코멘트 트리거 문구 갱신 및 제목 변경 요청 단계 추가.\n신규 CI Build Check 워크플로 추가(컴파일/테스트/빌드 상태 보고 및 체크런 생성).\nNexus 배포 워크플로 추가(태그 기반 버전 산출 및 퍼블리시).\nversion.yml 버전 1.0.9로 상향 및 타임스탬프 갱신.\n내부 문서 템플릿 파일 제거.",
+      "parsed_changes": {
+        "문서화": {
+          "title": "문서화",
+          "items": [
+            "README 최신 버전 표기를 v1.0.6(2025-09-18)로 업데이트."
+          ]
+        },
+        "chores": {
+          "title": "Chores",
+          "items": [
+            "GitHub Actions 개선: PR 코멘트 트리거 문구 갱신 및 제목 변경 요청 단계 추가.",
+            "신규 CI Build Check 워크플로 추가(컴파일/테스트/빌드 상태 보고 및 체크런 생성).",
+            "Nexus 배포 워크플로 추가(태그 기반 버전 산출 및 퍼블리시).",
+            "version.yml 버전 1.0.9로 상향 및 타임스탬프 갱신.",
+            "내부 문서 템플릿 파일 제거."
+          ]
+        }
+      }
+    },
     {
       "version": "1.0.6",
       "project_type": "basic",
