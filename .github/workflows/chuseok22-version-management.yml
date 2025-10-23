@@ -1,0 +1,25 @@
+name: Version Management (from chuseok22/version-management)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  chuseok22-version-bump:
+    uses: chuseok22/version-management/.github/workflows/auto-version.yml@v1
+    with:
+      project_type: "auto"                 # spring | next | plain | auto
+      default_branch: "main"
+      tag_prefix: "v"
+      default_version: "0.0.0"
+      next_constants_path: "src/constants/version.ts"  # Next.js만 대상
+      sync_app_yaml: "false"               # Spring application.yml version 치환
+      workdir: ""                          # 모노레포면 "backend"/"web" 등 하위 경로
+      dispatch_on_bump: "true"             # 버전 증가시에만 후속 트리거
+      dispatch_event_type: "version-bumped"
+      plain_version_file: "VERSION"        # Plain 프로젝트일 때 버전 파일 경로
