@@ -25,4 +25,4 @@ jobs:
       plain_version_file: "VERSION"        # Plain 프로젝트일 때 버전 파일 경로
       create_release: "true"               # 버전 증가 시 릴리스 생성
       release_latest: "true"               # latest 마킹
-      release_prelease: "false"          # 프리릴리스(예: M1, RC)면 true
+      release_prerelease: "false"          # 프리릴리스(예: M1, RC)면 true
