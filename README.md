@@ -1,4 +1,3 @@
-
 # 🚀 GitHub 프로젝트 템플릿
 
 [](https://www.google.com/search?q=LICENSE)
@@ -9,13 +8,13 @@
 
 이 템플릿은 프로젝트 관리를 효율적으로 만들어 줄 다양한 기능들을 포함하고 있습니다.
 
-| 기능 | 설명                                                                                                                                                                       |
-| --- |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **🎯 체계적인 이슈 템플릿** | 버그, 기능 요청, 디자인 등 상황에 맞는 템플릿을 제공하여 명확한 이슈 관리를 돕습니다.                                                                                                                       |
-| **💬 다양한 디스커션 템플릿** | 공지사항, 문서 등 목적에 맞는 디스커션 템플릿으로 원활한 팀 커뮤니케이션을 지원합니다.                                                                                                                        |
-| **🏷️ 자동 라벨 관리** | `.github/labels/issue-label.yml` 파일만 수정하면, GitHub Actions가 **별도의 설정 없이** 자동으로 라벨을 동기화하여 일관성을 유지합니다.                                                                      |
-| **📝 통일된 PR 템플릿** | Pull Request 작성 양식을 통일하여, 코드 리뷰의 효율성을 높이고 변경 사항을 쉽게 파악할 수 있도록 돕습니다.                                                                                                      |
-| **🔢 자동 버전 관리(Version Management)** | `version(major minor patch): ...` 커밋 규칙으로 SemVer 자동 증가. Spring Boot/Next.js/Plain 지원. 프로젝트 파일 동기화, CHANGELOG 자동 관리, 태그(`vX.Y.Z`) 생성, **증가시에만** `repository_dispatch` 발행. |
+| 기능 | 설명 |
+| --- | --- |
+| **🎯 체계적인 이슈 템플릿** | 버그, 기능 요청, 디자인 등 상황에 맞는 템플릿을 제공하여 명확한 이슈 관리를 돕습니다. |
+| **💬 다양한 디스커션 템플릿** | 공지사항, 문서 등 목적에 맞는 디스커션 템플릿으로 원활한 팀 커뮤니케이션을 지원합니다. |
+| **🏷️ 자동 라벨 관리** | `.github/labels/issue-label.yml` 파일만 수정하면, GitHub Actions가 **별도의 설정 없이** 자동으로 라벨을 동기화하여 일관성을 유지합니다. |
+| **📝 통일된 PR 템플릿** | Pull Request 작성 양식을 통일하여, 코드 리뷰의 효율성을 높이고 변경 사항을 쉽게 파악할 수 있도록 돕습니다. |
+| **🔢 자동 버전 관리(Version Management)** | `version(major|min|patch): ...` 커밋 규칙으로 SemVer 자동 증가. Spring Boot/Next.js/Plain 지원. 프로젝트 파일 동기화, CHANGELOG 자동 관리, 태그(`vX.Y.Z`) 생성/푸시, **증가시에만** `repository_dispatch` 발행. **(옵션) 자동 릴리스 생성 + 릴리스 노트** |
 
 ## 🚀 시작하기
 
@@ -44,7 +43,7 @@
 
 ## ⚙️ 자동 버전 관리(Version Management)
 
-중앙 배포형 버전 관리 워크플로 **(chuseok22/version-management)** 가 템플릿에 포함됩니다. 기본 브랜치에 규칙에 맞는 커밋이 들어오면 **버전 증가 → 파일 동기화 → CHANGELOG 갱신 → Git Tag 생성/푸시**가 자동으로 이뤄집니다.
+중앙 배포형 버전 관리 워크플로 **(chuseok22/version-management)** 가 템플릿에 포함됩니다. 기본 브랜치에 규칙에 맞는 커밋이 들어오면 **버전 증가 → 파일 동기화 → CHANGELOG 갱신 → Git Tag 생성/푸시 → (옵션) GitHub Release 생성(자동 노트)** 가 자동으로 이뤄집니다.
 
 ### ✅ 커밋 규칙 (필수)
 
@@ -55,6 +54,8 @@ version(major): drop legacy API
 version(minor): add CSV export
 version(patch): fix null check
 ```
+
+> 머지 전략에 따라 동작이 달라질 수 있습니다. **스쿼시 머지 + PR 제목에 규칙 적용** 또는 **메인에서 빈 커밋으로 버전 커밋**(예: `git commit --allow-empty -m "version(patch): ..."` ) 등 팀 정책을 결정해 주세요.
 
 ### 🧭 빠른 시작
 
@@ -88,6 +89,11 @@ jobs:
       dispatch_on_bump: "true"             # 버전 증가시에만 후속 트리거
       dispatch_event_type: "version-bumped"
       plain_version_file: "VERSION"        # Plain 프로젝트일 때 버전 파일 경로
+
+      # (옵션) 릴리스 생성 제어
+      create_release: "true"               # 버전 증가 시 릴리스 생성
+      release_latest: "true"               # 최신 릴리스로 표시
+      release_prerelease: "false"          # 프리릴리스로 표시(예: M1, RC)
 ```
 
 > **프로젝트 타입 자동 탐지**  
@@ -130,6 +136,8 @@ jobs:
 
 ## 🎨 기본 라벨 목록
 
+### 이슈/상태 관리(한국어)
+
 | 라벨명 | 색상 | 설명 |
 | --- | --- | --- |
 | 긴급 | `#ff0000` | 긴급한 작업 |
@@ -143,22 +151,38 @@ jobs:
 | 담당자 확인 중 | `#ffd700` | 담당자 확인 중 (담당자 확인 후 '작업완료' or '피드백') |
 | 피드백 | `#228b22` | 담당자 확인 후 수정 필요 |
 
+### PR 분류(릴리스 노트용, 영어)
+
+> 자동 생성 릴리스 노트 분류는 **PR 라벨** 기준입니다. 아래 라벨을 PR에 붙이면 릴리스 노트 섹션으로 분류하기 쉽습니다.
+
+| 라벨명 | 색상 | 설명 |
+| --- | --- | --- |
+| feat | `#14b8a6` | 새로운 기능 추가 (Feature) |
+| enhancement | `#22c55e` | 기능 개선/향상 (Enhancement) |
+| fix | `#f43f5e` | 버그 수정 (Fix) |
+| hotfix | `#0ea5e9` | 긴급 핫픽스 (Hotfix) |
+| chore | `#64748b` | 유지보수/빌드/잡무 (Chore) |
+| refactor | `#d946ef` | 리팩터링 (Refactor) |
+| ci | `#0369a1` | CI/CD 파이프라인/워크플로 변경 (CI) |
+| skip-release | `#94a3b8` | 자동 릴리스 노트에서 제외 |
+
 ---
 
 ## 🔍 문제 해결 (Troubleshooting)
 
-**라벨 동기화가 작동하지 않나요?**
-1) **GitHub Actions 활성화 확인**: Settings → Actions → General 에서 `Allow all actions and reusable workflows` 권장.
-2) **실행 로그 확인**: **Actions** 탭에서 “Sync GitHub Labels” 워크플로 실행 로그 점검.
+**라벨 동기화가 작동하지 않나요?**  
+1) **GitHub Actions 활성화 확인**: Settings → Actions → General 에서 `Allow all actions and reusable workflows` 권장.  
+2) **실행 로그 확인**: **Actions** 탭에서 “Sync GitHub Labels” 워크플로 실행 로그 점검.  
 3) **파일 경로 확인**: 워크플로 내 `yaml-file` 경로가 `.github/labels/issue-label.yml` 인지 확인.
 
-**Version Management가 동작하지 않나요?**
-1) **커밋 제목 패턴** 확인: `version(major|min|patch): ...` 형식인지.
-2) **브랜치** 확인: `main`(또는 `default_branch`)에서만 bump.
-3) **체크아웃 깊이**: `actions/checkout@v4`에 `fetch-depth: 0`.
-4) **권한**: `permissions: contents: write`.
-5) **프로젝트 타입 탐지**: `package.json`/`build.gradle` 유무에 따라 `next`/`spring` 판정, 그 외는 `plain`.
-6) **Plain 버전 파일 경로**: 기본 `VERSION`, 커스텀 시 `plain_version_file` 입력 사용.
+**Version Management가 동작하지 않나요?**  
+1) **커밋 제목 패턴** 확인: `version(major|min|patch): ...` 형식인지.  
+2) **브랜치** 확인: `main`(또는 `default_branch`)에서만 bump.  
+3) **체크아웃 깊이**: `actions/checkout@v4`에 `fetch-depth: 0`.  
+4) **권한**: `permissions: contents: write`.  
+5) **프로젝트 타입 탐지**: `package.json`/`build.gradle` 유무에 따라 `next`/`spring` 판정, 그 외는 `plain`.  
+6) **Plain 버전 파일 경로**: 기본 `VERSION`, 커스텀 시 `plain_version_file` 입력 사용.  
+7) **머지 전략**: 스쿼시 머지 + PR 제목 규칙 적용 또는 메인에서 빈 커밋으로 버전 커밋 처리.
 
 ---
 
@@ -166,10 +190,10 @@ jobs:
 
 이 템플릿을 더 멋지게 만들고 싶으신가요? 개선 아이디어가 있다면 언제든지 Pull Request를 보내주세요! 여러분의 기여를 환영합니다.
 
-1. 이 레포지토리를 Fork 합니다.
-2. `feature/기능`과 같이 새로운 브랜치를 생성합니다.
-3. 변경 사항을 커밋합니다.
-4. 생성한 브랜치로 Push 합니다.
+1. 이 레포지토리를 Fork 합니다.  
+2. `feature/기능`과 같이 새로운 브랜치를 생성합니다.  
+3. 변경 사항을 커밋합니다.  
+4. 생성한 브랜치로 Push 합니다.  
 5. Pull Request를 생성하여 변경 내용에 대해 설명해주세요.
 
 ---
