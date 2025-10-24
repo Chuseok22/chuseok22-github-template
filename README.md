@@ -14,7 +14,7 @@
 | **💬 다양한 디스커션 템플릿** | 공지사항, 문서 등 목적에 맞는 디스커션 템플릿으로 원활한 팀 커뮤니케이션을 지원합니다. |
 | **🏷️ 자동 라벨 관리** | `.github/labels/issue-label.yml` 파일만 수정하면, GitHub Actions가 **별도의 설정 없이** 자동으로 라벨을 동기화하여 일관성을 유지합니다. |
 | **📝 통일된 PR 템플릿** | Pull Request 작성 양식을 통일하여, 코드 리뷰의 효율성을 높이고 변경 사항을 쉽게 파악할 수 있도록 돕습니다. |
-| **🔢 자동 버전 관리(Version Management)** | `version(major|min|patch): ...` 커밋 규칙으로 SemVer 자동 증가. Spring Boot/Next.js/Plain 지원. 프로젝트 파일 동기화, CHANGELOG 자동 관리, 태그(`vX.Y.Z`) 생성/푸시, **증가시에만** `repository_dispatch` 발행. **(옵션) 자동 릴리스 생성 + 릴리스 노트** |
+| **🔢 자동 버전 관리(Version Management)** | `version(major minor patch): ...` 커밋 규칙으로 SemVer 자동 증가. Spring Boot/Next.js/Plain 지원. 프로젝트 파일 동기화, CHANGELOG 자동 관리, 태그(`vX.Y.Z`) 생성/푸시, **증가시에만** `repository_dispatch` 발행. **(옵션) 자동 릴리스 생성 + 릴리스 노트** |
 
 ## 🚀 시작하기
 
