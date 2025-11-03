@@ -19,6 +19,7 @@ env:
   SPRING_PROFILE_MAIN: "prod"
   SPRING_PROFILE_TEST: "prod"
   NGINX_RP_CONF: "/etc/nginx/sites-enabled/example.conf"
+  NGINX_BACKUP_DIR: "/volume1/project/nginx/backups"
 
 jobs:
   build:
@@ -115,6 +116,7 @@ jobs:
             GREEN_PORT="${{ env.GREEN_PORT }}"
             TEST_PORT="${{ env.TEST_PORT }}"
             NGINX_RP_CONF="${{ env.NGINX_RP_CONF }}"
+            BACKUP_DIR="${{ env.NGINX_BACKUP_DIR }}"
             
             PROFILE_MAIN="${{ env.SPRING_PROFILE_MAIN }}"
             PROFILE_TEST="${{ env.SPRING_PROFILE_TEST }}"
@@ -186,8 +188,11 @@ jobs:
             BLUE_CONTAINER_NAME="${CONTAINER_NAME}-blue"
             GREEN_CONTAINER_NAME="${CONTAINER_NAME}-green"
             
+            echo "[main] nginx 백업 디렉터리 생성: ${BACKUP_DIR}"
+            echo "${PW}" | sudo -S mkdir -p "${BACKUP_DIR}"
+            
             echo "[main] nginx 설정 파일 백업 생성 (${NGINX_RP_CONF})"
-            BACKUP_FILE="${NGINX_RP_CONF}.backup.$(date +%Y%m%d_%H%M%S)"
+            BACKUP_FILE="${BACKUP_DIR}/server.ReverseProxy.conf.$(date +%Y%m%d_%H%M%S).bak"
             echo "$PW" | sudo -S cp "${NGINX_RP_CONF}" "${BACKUP_FILE}"
             echo "[main] nginx 설정 백업 파일 생성 완료: ${BACKUP_FILE}"
             
@@ -389,7 +394,7 @@ jobs:
             echo "$PW" | sudo -S docker image prune -af
             
             # 성공 시 백업 파일 삭제
-            echo "[main] 배포 성공 - 백업 파일 삭제 ${BACKUP_FILE}"
-            echo "$PW" | sudo -S rm -f "${BACKUP_FILE}"
+            echo "[main] 배포 성공 - 백업 파일 최신 10개 보존 ${BACKUP_FILE}"
+            echo "$PW" | sudo -S /bin/bash -c "ls -1t '${BACKUP_DIR}'/server.ReverseProxy.conf.*.bak 2>/dev/null | tail -n +11 | xargs -r rm -f"
             
             echo "✅ main 서버 배포가 성공적으로 완료되었습니다."
