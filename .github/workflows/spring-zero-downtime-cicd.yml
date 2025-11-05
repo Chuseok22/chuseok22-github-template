@@ -151,8 +151,8 @@ jobs:
                 -v "${MOUNT_DIR}":/app \
                 "${IMAGE}"
             
-              echo "[test] 헬스체크 (최대 60회, 1초간격)"
-              for i in $(seq 1 60); do
+              echo "[test] 헬스체크 (최대 120회, 1초간격)"
+              for i in $(seq 1 120); do
                 if curl -fsS "http://127.0.0.1:${PORT}/actuator/health" >/dev/null 2>&1 || \
                    curl -fsS "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1 || \
                    curl -fsS "http://127.0.0.1:${PORT}/" >/dev/null 2>&1 || \
@@ -161,7 +161,7 @@ jobs:
                   HEALTH_OK=1
                   break
                 fi
-                echo "헬스체크 진행중... (시도 ${i}/60)"
+                echo "헬스체크 진행중... (시도 ${i}/120)"
                 sleep 1
               done
             
@@ -208,13 +208,13 @@ jobs:
                 {
                   raw = $0;
             
-                  # [수정됨] 주석 제거 후 중괄호 추적(주석 내 { } 무시)
+                  # 주석 제거 후 중괄호 추적(주석 내 { } 무시)
                   line = raw;
                   sub(/#.*/, "", line);
                   depth += gsub(/\{/, "{", line);
                   depth -= gsub(/\}/, "}", line);
             
-                  # [수정됨] server_name 라인에서 토큰 단위로 정확 매칭 (여러 도메인 한 줄 대응)
+                  # server_name 라인에서 토큰 단위로 정확 매칭 (여러 도메인 한 줄 대응)
                   if (!inserver && line ~ /^[[:space:]]*server_name[[:space:]]+/) {
                   tmp = line;
                   sub(/^[[:space:]]*server_name[[:space:]]+/, "", tmp);
@@ -269,8 +269,8 @@ jobs:
               -v "${MOUNT_DIR}":/app \
               "${IMAGE}"
             
-            echo "[main] 헬스체크 (최대 60회, 1초간격)"
-            for i in $(seq 1 60); do
+            echo "[main] 헬스체크 (최대 120회, 1초간격)"
+            for i in $(seq 1 120); do
               if curl -fsS "http://127.0.0.1:${PORT}/actuator/health" >/dev/null 2>&1 || \
                  curl -fsS "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1 || \
                  curl -fsS "http://127.0.0.1:${PORT}/" >/dev/null 2>&1 || \
@@ -279,7 +279,7 @@ jobs:
                 HEALTH_OK=1
                 break
               fi  
-              echo "헬스체크 진행중... (시도 ${i}/60)"
+              echo "헬스체크 진행중... (시도 ${i}/120)"
               sleep 1
             done
             
