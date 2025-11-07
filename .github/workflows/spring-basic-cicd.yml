@@ -39,7 +39,10 @@ jobs:
       # application-prod.yml 파일을 빌드 전에 생성
       - name: Create application-prod.yml from secret
         run: |
-          echo "${{ secrets.APPLICATION_PROD_YML }}" > src/main/resources/application-prod.yml
+          mkdir -p src/main/resources
+          cat << 'EOF' > ./src/main/resources/application-prod.yml
+          ${{ secrets.APPLICATION_PROD_YML }}
+          EOF
 
       # 브랜치 별 active profile 설정
       - name: Decide active profile
