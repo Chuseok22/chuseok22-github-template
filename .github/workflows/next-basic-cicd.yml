@@ -166,7 +166,6 @@ jobs:
             fi
 
             echo "새로운 컨테이너 ${CONTAINER_NAME} 실행 중..."
-            echo "${{ secrets.ENV_PRODUCTION }}" > .env.production
             echo $PW | sudo -S docker run -d -p "${PORT}":"${APP_PORT}" --name "${CONTAINER_NAME}" \
               --env-file .env.production \
               "${IMAGE}"
