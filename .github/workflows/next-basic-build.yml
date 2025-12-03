@@ -1,0 +1,64 @@
+name: workflow-name
+
+on:
+  pull_request:
+    branches:
+#      - test
+#      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 브랜치별 .env.production 생성
+      - name: Create .env.production file
+        run: |
+          if [ "${{ github.base_ref }}" = "main" ]; then
+            echo -e "${{ secrets.ENV_MAIN }}" > .env.production
+          elif [ "${{ github.base_ref }}" = "test" ]; then
+            echo -e "${{ secrets.ENV_TEST }}" > .env.production
+          else
+            echo -e "${{ secrets.ENV_MAIN }}" > .env.production
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.15.0"
+          cache: "npm"
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Cache node_modules
+        id: node-modules-cache
+        uses: actions/cache@v4
+        with:
+          path: "**/node_modules"
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-
+
+      - name: Build project
+        run: npm run build

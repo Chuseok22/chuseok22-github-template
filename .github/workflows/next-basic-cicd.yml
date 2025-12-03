@@ -31,9 +31,11 @@ jobs:
       - name: Create .env.production file
         run: |
           if [ "${{ github.ref_name }}" = "main" ]; then
-            echo -e "${{ secrets.ENV_PRODUCTION }}" > .env.production
+            echo -e "${{ secrets.ENV_MAIN }}" > .env.production
           elif [ "${{ github.ref_name }}" = "test" ]; then
-            echo -e "${{ secrets.ENV_PRODUCTION }}" > .env.production
+            echo -e "${{ secrets.ENV_TEST }}" > .env.production
+          else
+            echo -e "${{ secrets.ENV_MAIN }}" > .env.production
           fi
 
       - name: Set up Node.js
@@ -152,6 +154,15 @@ jobs:
               echo "컨테이너 ${CONTAINER_NAME} 이(가) 삭제되었습니다."
             else
               echo "존재하는 컨테이너 ${CONTAINER_NAME} 이(가) 없습니다."
+            fi
+            
+            echo "브랜치별 .env.production 생성..."
+            if [ "$BRANCH" = "main" ]; then
+              echo "${{ secrets.ENV_MAIN }}" > .env.production
+            elif [ "$BRANCH" = "test" ]; then
+              echo "${{ secrets.ENV_TEST }}" > .env.production
+            else
+              echo "${{ secrets.ENV_MAIN }}" > .env.production
             fi
 
             echo "새로운 컨테이너 ${CONTAINER_NAME} 실행 중..."
