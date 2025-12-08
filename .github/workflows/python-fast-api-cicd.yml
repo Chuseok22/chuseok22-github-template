@@ -1,0 +1,128 @@
+name: python-fast-api-cicd.yml
+on:
+  push:
+    branches:
+      - main
+
+# 한 번에 하나만 실행(같은 브랜치 기준)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_NAME: project-name
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  PORT: 8080
+  APP_PORT: 8080
+
+jobs:
+  build:
+    if: ${{ !startsWith(github.event.head_commit.message, 'version(') }} # 특정 커밋 메시지 워크플로 실행 제외
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Docker 빌드환경 설정
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker 로그인
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker 캐시 설정
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ hashFiles('Dockerfile') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Docker 이미지 빌드 및 푸시
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.PROJECT_NAME }}:${{ github.ref_name }}
+          # 이미지 안에 빌드 메타정보(선택)
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            BUILD_TIME=${{ github.run_id }}
+          cache-to: type=inline
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: SSH 원격 서버 연결
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT }}
+
+          script: |
+            set -e
+            
+            echo "환경변수 설정..."
+            PW=${{ secrets.SERVER_PASSWORD }}
+            BRANCH=${{ github.ref_name }}
+            PROJECT_NAME=${{ env.PROJECT_NAME }}
+            CONTAINER_NAME=${{ env.PROJECT_NAME }}
+            IMAGE=${{ env.DOCKERHUB_USERNAME }}/${{ env.PROJECT_NAME }}:${BRANCH}
+            PORT=${{ env.PORT }}
+            APP_PORT=${{ env.APP_PORT }}
+            
+            echo "브랜치: ${BRANCH}"
+            echo "이미지: ${IMAGE}"
+            echo "컨테이너: ${CONTAINER_NAME}"
+            
+            echo "도커 이미지 풀 : ${IMAGE}"
+            echo $PW | sudo -S docker pull "${IMAGE}"
+            
+            echo "컨테이너 ${CONTAINER_NAME} 존재 여부 확인 중..."
+            if sudo docker ps -a --format '{{.Names}}' | grep -Eq "^${CONTAINER_NAME}\$"; then
+              echo "컨테이너 ${CONTAINER_NAME} 이(가) 존재합니다. 중지 및 삭제 중..."
+              echo $PW | sudo -S docker rm -f "${CONTAINER_NAME}"
+              echo "컨테이너 ${CONTAINER_NAME} 이(가) 삭제되었습니다."
+            else
+              echo "존재하는 컨테이너 ${CONTAINER_NAME} 이(가) 없습니다."
+            fi
+            
+            echo "새로운 컨테이너 ${CONTAINER_NAME} 실행 중..."
+            echo $PW | sudo -S docker run -d -p "${PORT}":"${APP_PORT}" --name "${CONTAINER_NAME}" \
+              -e TZ=Asia/Seoul \
+              "${IMAGE}"
+            
+            echo "헬스체크 (최대 120회, 1초간격)"
+            for i in $(seq 1 120); do
+              if curl -fsS "http://127.0.0.1:${PORT}/actuator/health" >/dev/null 2>&1 || \
+                 curl -fsS "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1 || \
+                 curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1 || \
+                 curl -fsS "http://127.0.0.1:${PORT}/" >/dev/null 2>&1 || \
+                 curl -fsS "http://127.0.0.1:${PORT}/docs/swagger-ui/index.html" >/dev/null 2>&1 ; then
+                echo "헬스체크 성공 (시도 ${i})"
+                HEALTH_OK=1
+                break
+              fi  
+              echo "헬스체크 진행중... (시도 ${i}/120)"
+              sleep 1
+            done
+            
+            if [ "${HEALTH_OK:-0}" != "1" ]; then
+              echo "[오류] 헬스체크 실패 -> 배포 중단, 로그 출력"
+              echo "$PW" | sudo -S docker logs --tail=200 ${CONTAINER_NAME}
+              exit 1
+            fi
+            
+            # <none> 태그로 남은 이미지 정리
+            echo "불필요한 dangling(<none>) 이미지 정리..."
+            echo $PW | sudo -S docker image prune -af
+            
+            echo "배포가 성공적으로 완료되었습니다."
