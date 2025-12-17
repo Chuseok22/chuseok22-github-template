@@ -69,6 +69,7 @@ jobs:
 
           script: |
             set -e
+            export PATH=$PATH:/usr/local/bin
             
             echo "환경변수 설정..."
             PW=${{ secrets.SERVER_PASSWORD }}
@@ -78,6 +79,7 @@ jobs:
             IMAGE=${{ env.DOCKERHUB_USERNAME }}/${{ env.PROJECT_NAME }}:${BRANCH}
             PORT=${{ env.PORT }}
             APP_PORT=${{ env.APP_PORT }}
+            WORKDIR="/opt/${PROJECT_NAME}/${BRANCH}"
             
             echo "브랜치: ${BRANCH}"
             echo "이미지: ${IMAGE}"
@@ -95,9 +97,16 @@ jobs:
               echo "존재하는 컨테이너 ${CONTAINER_NAME} 이(가) 없습니다."
             fi
             
+            echo "디렉토리 구조 생성"
+            echo $PW | sudo -S mkdir -p "${WORKDIR}"
+            
+            echo ".env 파일 구성"
+            echo '${{ secrets.ENV_FILE }}' | sudo tee "${WORKDIR}/.env" > /dev/null
+            
             echo "새로운 컨테이너 ${CONTAINER_NAME} 실행 중..."
             echo $PW | sudo -S docker run -d -p "${PORT}":"${APP_PORT}" --name "${CONTAINER_NAME}" \
               -e TZ=Asia/Seoul \
+              --env-file "${WORKDIR}/.env" \
               "${IMAGE}"
             
             echo "헬스체크 (최대 120회, 1초간격)"
