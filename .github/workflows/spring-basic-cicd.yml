@@ -156,6 +156,26 @@ jobs:
               -v /etc/localtime:/etc/localtime:ro \
               -v "${MOUNT_DIR}":/app \
               "${IMAGE}"
+            
+            echo "[main] 헬스체크 (최대 120회, 1초간격)"
+            for i in $(seq 1 120); do
+              if curl -fsS "http://127.0.0.1:${PORT}/actuator/health" >/dev/null 2>&1 || \
+                 curl -fsS "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1 || \
+                 curl -fsS "http://127.0.0.1:${PORT}/" >/dev/null 2>&1 || \
+                 curl -fsS "http://127.0.0.1:${PORT}/docs/swagger-ui/index.html" >/dev/null 2>&1 ; then
+                echo "헬스체크 성공 (시도 ${i})"
+                HEALTH_OK=1
+                break
+              fi  
+              echo "헬스체크 진행중... (시도 ${i}/120)"
+              sleep 1
+            done
+            
+            if [ "${HEALTH_OK:-0}" != "1" ]; then
+              echo "[오류] 헬스체크 실패 -> 배포 중단, 로그 출력"
+              echo "$PW" | sudo -S docker logs --tail=200 ${CONTAINER_NAME}
+              exit 1
+            fi
 
             # <none> 태그로 남은 이미지 정리
             echo "불필요한 dangling(<none>) 이미지 정리..."
