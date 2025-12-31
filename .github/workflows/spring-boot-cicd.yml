@@ -1,4 +1,4 @@
-name: workflow-name # 워크플로 이름
+name: spring-boot-cicd # 워크플로 이름
 
 on:
   push:
@@ -16,6 +16,14 @@ env:
   MOUNT_DIR: "/volume/project/..."
   SPRING_PROFILE_MAIN: "prod"
   SPRING_PROFILE_TEST: "prod"
+  TIME_ZONE: "Asia/Seoul"
+
+  REPLICAS: 1 # 동시에 실행할 컨테이너 수
+  UPDATE_PARALLELISM: 1 # 동시 업데이트 수
+  UPDATE_DELAY: 10s # 업데이트 대기시간
+  UPDATE_FAILURE_ACTION: "rollback" # 업데이트 실패 시
+  RESTART_CONDITION: "on-failure" # 재기동 조건
+  RESTART_MAX_ATTEMPTS: 3 # 재기동 시도 횟수
 
 jobs:
   build:
@@ -107,6 +115,7 @@ jobs:
             IMG_SUFFIX="${{ env.APP_IMAGE_SUFFIX }}"
             IMAGE="${REPO}/${PROJECT}${IMG_SUFFIX}:${BRANCH}"
             CONTAINER_NAME="${PROJECT}${IMG_SUFFIX}"
+            SERVICE_NAME="${PROJECT}${IMG_SUFFIX}"
             APP_PORT="${{ env.APP_EXPOSE_PORT }}"
             MOUNT_DIR="${{ env.MOUNT_DIR }}"
             
@@ -115,6 +124,15 @@ jobs:
             
             PROFILE_MAIN="${{ env.SPRING_PROFILE_MAIN }}"
             PROFILE_TEST="${{ env.SPRING_PROFILE_TEST }}"
+            
+            TIME_ZONE="${{ env.TIME_ZONE }}"
+            
+            REPLICAS="${{ env.REPLICAS }}"
+            UPDATE_PARALLELISM="${{ env.UPDATE_PARALLELISM }}"
+            UPDATE_DELAY="${{ env.UPDATE_DELAY }}"
+            UPDATE_FAILURE_ACTION="${{ env.UPDATE_FAILURE_ACTION }}"
+            RESTART_CONDITION="${{ env.RESTART_CONDITION }}"
+            RESTART_MAX_ATTEMPTS="${{ env.RESTART_MAX_ATTEMPTS }}"
             
             echo "브랜치=${BRANCH}"
             echo "이미지=${IMAGE}"
@@ -125,6 +143,7 @@ jobs:
               PROFILE="${PROFILE_MAIN}"
             elif [ "${BRANCH}" = "test" ]; then
               CONTAINER_NAME="${CONTAINER_NAME}"-test
+              SERVICE_NAME="${SERVICE_NAME}-test"
               PORT=${TEST_PORT}
               PROFILE=${PROFILE_TEST}
             else
@@ -139,25 +158,89 @@ jobs:
 
             echo "도커 이미지 풀 : ${IMAGE}"
             echo $PW | sudo -S docker pull "${IMAGE}"
-
-            echo "컨테이너 ${CONTAINER_NAME} 존재 여부 확인 중..."
-            if sudo docker ps -a --format '{{.Names}}' | grep -Eq "^${CONTAINER_NAME}\$"; then
-              echo "컨테이너 ${CONTAINER_NAME} 이(가) 존재합니다. 중지 및 삭제 중..."
-              echo $PW | sudo -S docker rm -f ${CONTAINER_NAME}
-              echo "컨테이너 ${CONTAINER_NAME} 이(가) 삭제되었습니다."
-            else
-              echo "존재하는 컨테이너 ${CONTAINER_NAME} 이(가) 없습니다."
-            fi
-
-            echo "새로운 컨테이너 ${CONTAINER_NAME} 실행 중..."
-            echo $PW | sudo -S docker run -d -p "${PORT}":"${APP_PORT}" --name "${CONTAINER_NAME}" \
-              -e TZ=Asia/Seoul \
-              -e "SPRING_PROFILES_ACTIVE=${PROFILE}" \
-              -v /etc/localtime:/etc/localtime:ro \
-              -v "${MOUNT_DIR}":/app \
-              "${IMAGE}"
             
-            echo "[main] 헬스체크 (최대 120회, 1초간격)"
+            # Docker Swarm 초기화 확인 (최초 1회 실행)
+            echo "Docker Swarm 초기화 확인 (최초 1회 실행)"
+            if ! sudo docker info | grep -q "Swarm: active"; then
+              echo "Docker Swarm이 비활성화 상태입니다. docker swarm init 진행"
+              echo $PW | sudo -S docker swarm init || true
+              echo "Docker Swarm 초기화 완료"
+            else
+              echo "Docker Swarm이 이미 활성화되어 있습니다."
+            fi
+            
+            echo "서비스 존재 여부 확인"
+            if sudo docker service ls --format '{{.Name}}' | grep -Eq "^${SERVICE_NAME}\$"; then
+              echo "서비스 ${SERVICE_NAME}이(가) 존재합니다. 업데이트를 진행합니다."
+              echo "Rolling Update 실행 (무중단 배포) - 시간이 소요됩니다"
+              echo $PW | sudo -S docker service update \
+                --image "${IMAGE}" \
+                --update-parallelism "${UPDATE_PARALLELISM}" \
+                --update-delay "${UPDATE_DELAY}" \
+                --update-failure-action "${UPDATE_FAILURE_ACTION}" \
+                --env-add "SPRING_PROFILES_ACTIVE=${PROFILE}" \
+                --env-add "TZ=${TIME_ZONE}" \
+                "${SERVICE_NAME}"
+            
+              echo "Rolling Update 시작됨. 진행 상황 모니터링 중..."
+            
+            else
+              echo "서비스 ${SERVICE_NAME}이 존재하지 않습니다. 새로운 서비스를 실행합니다."
+              echo $PW | sudo -S docker service create \
+                --name "${SERVICE_NAME}" \
+                --replicas "${REPLICAS}" \
+                --publish published=${PORT},target=${APP_PORT} \
+                --update-parallelism "${UPDATE_PARALLELISM}" \
+                --update-delay "${UPDATE_DELAY}" \
+                --update-failure-action "${UPDATE_FAILURE_ACTION}" \
+                --restart-condition "${RESTART_CONDITION}" \
+                --restart-max-attempts "${RESTART_MAX_ATTEMPTS}" \
+                --env "TZ=${TIME_ZONE}" \
+                --env "SPRING_PROFILES_ACTIVE=${PROFILE}" \
+                --mount type=bind,source=/etc/localtime,target=/etc/localtime,readonly \
+                --mount type=bind,source="${MOUNT_DIR}",target=/app \
+                "${IMAGE}"
+              echo "서비스 ${SERVICE_NAME} 생성 완료"
+            fi
+            
+            echo "배포 상태 확인 중 (최대 120초 대기)..."
+            for i in $(seq 1 120); do
+              REPLICAS=$(echo $PW | sudo -S docker service ls --filter name=${SERVICE_NAME} --format "{{.Replicas}}")
+              echo "현재 상태: ${REPLICAS} (시도 ${i}/120)"
+            
+              # replicas 가 1/1 이면 성공
+              if echo "$REPLICAS" | grep -q "1/1"; then
+                echo "서비스가 정상적으로 실행 중 입니다."
+                DEPLOY_SUCCESS=1
+                break
+              fi
+            
+              if [ "$i" -gt 30 ] && echo "$REPLICAS" | grep -q "0/1"; then
+                echo "[경고] 서비스 시작에 실패했을 가능성이 있습니다."
+              fi
+            
+              sleep 1
+            done
+            
+            echo "배포 결과 확인중..."
+            if [ "${DEPLOY_SUCCESS:-0}" != "1" ]; then
+              echo "[오류] 서비스 배포 실패. 서비스 로그를 확인합니다."
+            
+              # 서비스와 태스크 목록 확인
+              echo "=== 태스크 목록 ==="
+              echo $PW | sudo -S docker service ps ${SERVICE_NAME} --no-trunc
+            
+              # 가장 최근 태스크의 로그 출력
+              TASK_ID=$(echo $PW | sudo -S docker service ps ${SERVICE_NAME} -q | head -n 1)
+              if [ -n "$TASK_ID" ]; then
+                echo "=== 태스크 로그 (최근 200줄) ==="
+                echo $PW | sudo -S docker logs $(sudo docker inspect --format '{{.Status.ContainerStatus.ContainerID}}' $TASK_ID) --tail=200 || true
+              fi
+            
+              exit 1
+            fi
+            
+            echo "헬스체크 (최대 120회, 1초간격)"
             for i in $(seq 1 120); do
               if curl -fsS "http://127.0.0.1:${PORT}/actuator/health" >/dev/null 2>&1 || \
                  curl -fsS "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1 || \
@@ -172,9 +255,8 @@ jobs:
             done
             
             if [ "${HEALTH_OK:-0}" != "1" ]; then
-              echo "[오류] 헬스체크 실패 -> 배포 중단, 로그 출력"
-              echo "$PW" | sudo -S docker logs --tail=200 ${CONTAINER_NAME}
-              exit 1
+              echo "[경고] 컨테이너 헬스체크 실패. 서비스는 실행 중."
+              echo "수동으로 확인이 필요합니다."
             fi
 
             # <none> 태그로 남은 이미지 정리

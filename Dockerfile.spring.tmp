@@ -3,6 +3,9 @@ FROM eclipse-temurin:25-jre-alpine
 # 작업 디렉토리 설정
 WORKDIR /app
 
+# curl 설치
+RUN apk add --no-cache curl
+
 # 빌드된 JAR 파일을 복사
 COPY build/libs/{project-name}-*.jar /app.jar
 
@@ -11,3 +14,7 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 
 # Spring Boot 서버 포트 노출
 EXPOSE 8080
+
+# Docker Swarm 헬스체크
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=5 \
+CMD curl -f http://localhost:8080/actuator/health || exit 1
