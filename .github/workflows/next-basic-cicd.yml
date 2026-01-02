@@ -129,7 +129,7 @@ jobs:
 
             echo "새로운 컨테이너 ${CONTAINER_NAME} 실행 중..."
             echo $PW | sudo -S docker run -d -p "${PORT}":"${APP_PORT}" --name "${CONTAINER_NAME}" \
-              --restart unless-stopped
+              --restart unless-stopped \
               --env-file .env.production \
               "${IMAGE}"
             
