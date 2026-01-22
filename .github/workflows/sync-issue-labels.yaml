@@ -1,6 +1,7 @@
 name: "Sync GitHub Labels"
 
 permissions:
+  contents: read
   issues: write
 
 on:
