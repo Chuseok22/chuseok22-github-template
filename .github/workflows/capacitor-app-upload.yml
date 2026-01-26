@@ -1,0 +1,244 @@
+name: Capacitor App Upload (TestFlight + Google Play Internal)
+
+on:
+  repository_dispatch:
+    types: [capacitor-upload]
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '업로드할 태그 (예: v1.2.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: capacitor-upload-${{ github.event.client_payload.tag || github.event.inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  # ─────────────────────────────────────────────────────────────
+  # (프로젝트별로 바뀌는 값) 요청대로 "워크플로 내부에서"만 정의
+  # 다른 프로젝트에 그대로 복사해도 동작하게 하려면 여기만 수정하면 됨
+  # ─────────────────────────────────────────────────────────────
+
+  # Release asset 파일명 prefix (capacitor-build.yml에서 APP_NAME과 동일해야 함)
+  ASSET_PREFIX: "AppName"
+
+  # Google Play Console 패키지명 (applicationId)
+  ANDROID_PACKAGE_NAME: "com.example.app"
+
+  # Google Play 업로드 트랙: internal / alpha / beta / production
+  GOOGLE_PLAY_TRACK: "internal"
+
+  # 표시용 프로젝트명
+  PROJECT_DISPLAY_NAME: "AppName"
+
+  # iOS Bundle ID (검증용)
+  IOS_BUNDLE_ID: "com.example.app"
+
+  # fastlane 버전 고정 (원하는 버전으로 조정)
+  FASTLANE_VERSION: "2.219.0" # fastlane 버전 고정(안정성)
+
+jobs:
+  resolve_inputs:
+    name: Resolve tag/version (payload or manual)
+    runs-on: ubuntu-latest
+
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+      release_name: ${{ steps.resolve.outputs.release_name }}
+
+    steps:
+      - name: 🧾 Resolve tag + version
+        id: resolve
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          SEMVER_TAG_REGEX='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            TAG="${{ github.event.client_payload.tag }}"
+            VERSION="${{ github.event.client_payload.version }}"
+          else
+            TAG="${{ github.event.inputs.tag }}"
+            VERSION="${TAG#v}"
+          fi
+
+          if [ -z "$TAG" ] || [[ ! "$TAG" =~ $SEMVER_TAG_REGEX ]]; then
+            echo "❌ Invalid or missing tag: '$TAG' (must be vX.Y.Z)"
+            exit 1
+          fi
+
+          if [ -z "$VERSION" ]; then
+            VERSION="${TAG#v}"
+          fi
+
+          PROJECT_NAME="${PROJECT_DISPLAY_NAME:-${{ github.event.repository.name }}}"
+          RELEASE_NAME="${PROJECT_NAME} (${VERSION})"
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
+
+          echo "✅ TAG=$TAG"
+          echo "✅ VERSION=$VERSION"
+          echo "✅ RELEASE_NAME=$RELEASE_NAME"
+
+  upload_android:
+    name: Upload Android (AAB) to Google Play Internal
+    runs-on: ubuntu-latest
+    needs: resolve_inputs
+
+    steps:
+      - name: ✅ Validate required config
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [ -z "${ANDROID_PACKAGE_NAME}" ] || [ "${ANDROID_PACKAGE_NAME}" = "com.example.waitee" ]; then
+            echo "❌ ANDROID_PACKAGE_NAME must be set to real applicationId"
+            exit 1
+          fi
+
+      - name: 📥 Download AAB from GitHub Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.resolve_inputs.outputs.tag }}
+          VERSION: ${{ needs.resolve_inputs.outputs.version }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          AAB_NAME="${ASSET_PREFIX}-${VERSION}.aab"
+
+          echo "Downloading: $AAB_NAME from release $TAG"
+          # ✅ CHANGED: repo 명시 (checkout 없이 gh 사용 시 실패 방지)
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$AAB_NAME" --clobber
+
+          if [ ! -f "$AAB_NAME" ]; then
+            echo "❌ AAB not found after download: $AAB_NAME"
+            ls -la || true
+            exit 1
+          fi
+
+          echo "AAB_PATH=$AAB_NAME" >> "$GITHUB_ENV"
+          echo "✅ Downloaded $AAB_NAME"
+
+      - name: 🚀 Upload to Google Play (internal track)
+        uses: r0adkll/upload-google-play@v1.1.3
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ env.ANDROID_PACKAGE_NAME }}
+          releaseFiles: ${{ env.AAB_PATH }}
+          track: ${{ env.GOOGLE_PLAY_TRACK }}
+          releaseName: ${{ needs.resolve_inputs.outputs.release_name }}
+          status: completed
+
+  upload_ios:
+    name: Upload iOS (IPA) to TestFlight
+    runs-on: macos-15
+    needs: resolve_inputs
+
+    steps:
+      - name: ✅ Validate required config
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [ -z "${IOS_BUNDLE_ID}" ] || [ "${IOS_BUNDLE_ID}" = "com.example.waitee" ]; then
+            echo "❌ IOS_BUNDLE_ID must be set to real bundle id"
+            exit 1
+          fi
+
+      - name: 📥 Download IPA from GitHub Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.resolve_inputs.outputs.tag }}
+          VERSION: ${{ needs.resolve_inputs.outputs.version }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          IPA_NAME="${ASSET_PREFIX}-${VERSION}.ipa"
+
+          echo "Downloading: $IPA_NAME from release $TAG"
+          # ✅ CHANGED: repo 명시 (checkout 없이 gh 사용 시 실패 방지)
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$IPA_NAME" --clobber
+
+          if [ ! -f "$IPA_NAME" ]; then
+            echo "❌ IPA not found after download: $IPA_NAME"
+            ls -la || true
+            exit 1
+          fi
+
+          echo "IPA_PATH=$IPA_NAME" >> "$GITHUB_ENV"
+          echo "✅ Downloaded $IPA_NAME"
+
+      - name: 💎 Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: 📦 Install fastlane (pinned)
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gem install fastlane -v "${FASTLANE_VERSION}" -N
+          fastlane --version
+
+      - name: 🔐 Create App Store Connect API key files
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          if [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$ASC_PRIVATE_KEY_BASE64" ]; then
+            echo "❌ Missing App Store Connect API key secrets"
+            echo "   Required: APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_PRIVATE_KEY_BASE64"
+            exit 1
+          fi
+
+          KEY_DIR="$RUNNER_TEMP/appstoreconnect"
+          mkdir -p "$KEY_DIR"
+
+          P8_PATH="$KEY_DIR/AuthKey_${ASC_KEY_ID}.p8"
+          export P8_PATH # python에서 os.environ로 읽도록 환경변수로 export
+
+          # macOS/Linux base64 옵션 차이 제거를 위해 python으로 디코딩
+          python3 - <<'PY'
+          import base64, os
+          p8_path = os.environ["P8_PATH"]
+          data = os.environ["ASC_PRIVATE_KEY_BASE64"].strip()
+          with open(p8_path, "wb") as f:
+            f.write(base64.b64decode(data))
+          PY
+
+          API_KEY_INFO="$KEY_DIR/api_key_info.json"
+          cat > "$API_KEY_INFO" <<EOF
+          {
+            "key_id": "${ASC_KEY_ID}",
+            "issuer_id": "${ASC_ISSUER_ID}",
+            "key_filepath": "${P8_PATH}"
+          }
+          EOF
+
+          echo "ASC_API_KEY_INFO=$API_KEY_INFO" >> "$GITHUB_ENV"
+          echo "✅ App Store Connect API key files ready"
+
+      - name: 🚀 Upload to TestFlight (pilot)
+        env:
+          CHANGELOG: ${{ needs.resolve_inputs.outputs.release_name }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          fastlane pilot upload \
+            --api_key_path "$ASC_API_KEY_INFO" \
+            --ipa "$IPA_PATH" \
+            --changelog "$CHANGELOG"

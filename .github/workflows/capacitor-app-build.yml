@@ -456,7 +456,7 @@ jobs:
           EOF
 
           xcodebuild -exportArchive \
-            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -archivePath "$ARCHIVE_PATH" \
             -exportPath "$RUNNER_TEMP/export" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
 
@@ -492,3 +492,44 @@ jobs:
         with:
           name: ios-${{ needs.check-version-update.outputs.version }}
           path: ${{ steps.rename.outputs.ipa }}
+
+  trigger-upload:
+    name: Capacitor App 자동 업로드 트리거 (repository_dispatch)
+    runs-on: ubuntu-latest
+    needs: [ check-version-update, build-android, build-ios ]
+    if: needs.check-version-update.outputs.should-build == 'true'
+
+    steps:
+      - name: 🚀 Dispatch upload workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check-version-update.outputs.tag }}
+          VERSION: ${{ needs.check-version-update.outputs.version }}
+        run: |
+          set -Eeuo pipefail
+
+          if [ -z "$TAG" ] || [ -z "$VERSION" ]; then
+            echo "❌ TAG/VERSION missing (TAG=$TAG, VERSION=$VERSION)"
+            exit 1
+          fi
+
+          cat > payload.json <<EOF
+          {
+            "event_type": "capacitor-upload",
+            "client_payload": {
+              "tag": "${TAG}",
+              "version": "${VERSION}",
+              "sha": "${{ github.sha }}",
+              "run_id": "${{ github.run_id }}"
+            }
+          }
+          EOF
+
+          curl --fail --show-error -sS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/dispatches" \
+            --data-binary @payload.json
+
+          echo "✅ Dispatched capacitor-upload for $TAG ($VERSION)"
