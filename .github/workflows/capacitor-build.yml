@@ -1,0 +1,494 @@
+name: Capacitor App Build
+
+on:
+  repository_dispatch:
+    types:
+      - version-bumped
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '빌드할 태그 (예: v1.2.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  APP_NAME: 'AppName'
+  NODE_VERSION: '22'
+  JAVA_VERSION: '21'
+
+jobs:
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Job 1: 버전 검증
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  check-version-update:
+    name: 🔍 버전 업데이트 확인
+    runs-on: ubuntu-latest
+
+    outputs:
+      should-build: ${{ steps.check-update.outputs.should-build }}
+      tag: ${{ steps.check-update.outputs.tag }}
+      version: ${{ steps.check-update.outputs.version }}
+
+    steps:
+      - name: 🛎️ Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔍 Check if version was actually updated
+        id: check-update
+        run: |
+          set -Eeuo pipefail
+
+          SEMVER_TAG_REGEX='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' # vX.Y.Z
+          SEMVER_VER_REGEX='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' # X.Y.Z
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # 수동 실행인 경우
+            TAG="${{ github.event.inputs.tag }}"
+            # 태그 형식 검증
+            if [[ ! $TAG =~ $SEMVER_TAG_REGEX ]]; then
+              echo "❌ 잘못된 태그 형식: $TAG (v1.2.3 형식이어야 함)"
+              exit 1
+            fi
+            VERSION="${TAG#v}"
+            echo "should-build=true" >> $GITHUB_OUTPUT
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "✅ 수동 실행: $TAG"
+          else
+            RAW_TAG="${{ github.event.client_payload.new_tag }}"
+            RAW_VER="${{ github.event.client_payload.new_version }}"
+
+            if [ -n "$RAW_TAG" ] && [[ "$RAW_TAG" =~ $SEMVER_TAG_REGEX ]]; then
+              VERSION="${RAW_TAG#v}"
+              echo "should-build=true"  >> "$GITHUB_OUTPUT"
+              echo "tag=$RAW_TAG"       >> "$GITHUB_OUTPUT"
+              echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
+              echo "✅ repository_dispatch tag: $RAW_TAG"
+            elif [ -n "$RAW_VER" ] && [[ "$RAW_VER" =~ $SEMVER_VER_REGEX ]]; then
+              echo "should-build=true"  >> "$GITHUB_OUTPUT"
+              echo "tag=v$RAW_VER"      >> "$GITHUB_OUTPUT"
+              echo "version=$RAW_VER"   >> "$GITHUB_OUTPUT"
+              echo "✅ repository_dispatch version: $RAW_VER"
+            else
+              echo "should-build=false" >> "$GITHUB_OUTPUT"
+              echo "📝 repository_dispatch payload에 유효한 tag/version이 없습니다. 빌드 생략"
+            fi
+          fi
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Job 2: Next.js 빌드
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  build-web:
+    name: 🌐 Build Next.js
+    runs-on: ubuntu-latest
+    needs: check-version-update
+    if: needs.check-version-update.outputs.should-build == 'true'
+
+    steps:
+      - name: 🛎️ Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check-version-update.outputs.tag }}
+
+      - name: 🧰 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build Next.js
+        run: npm run build
+
+      - name: 📤 Upload web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build-${{ needs.check-version-update.outputs.version }}
+          path: out/
+          retention-days: 1
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Job 3: Android 빌드
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  build-android:
+    name: 🤖 Build Android
+    runs-on: ubuntu-latest
+    needs: [ check-version-update, build-web ]
+    if: needs.check-version-update.outputs.should-build == 'true'
+
+    steps:
+      - name: 🛎️ Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check-version-update.outputs.tag }}
+
+      - name: 🧰 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: ☕ Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: 🤖 Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 📥 Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build-${{ needs.check-version-update.outputs.version }}
+          path: out/
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔄 Capacitor sync
+        run: npx cap sync android
+
+      - name: 🔐 Setup Android signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "❌ ANDROID_KEYSTORE_BASE64 secret not found"
+            exit 1
+          fi
+
+          KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+          echo "KEYSTORE_PATH=$KEYSTORE_PATH" >> $GITHUB_ENV
+          echo "✅ Keystore created"
+
+      - name: 🏗️ Build APK
+        env:
+          VERSION_NAME: ${{ needs.check-version-update.outputs.version }}
+          VERSION_CODE: ${{ github.run_number }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      - name: 🏗️ Build AAB
+        env:
+          VERSION_NAME: ${{ needs.check-version-update.outputs.version }}
+          VERSION_CODE: ${{ github.run_number }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      - name: 📦 Rename outputs
+        id: rename
+        env:
+          VERSION: ${{ needs.check-version-update.outputs.version }}
+        run: |
+          APK_SRC=$(find android/app/build/outputs/apk/release -name "*.apk" -type f | head -n1)
+          AAB_SRC=$(find android/app/build/outputs/bundle/release -name "*.aab" -type f | head -n1)
+
+          if [ -z "$APK_SRC" ]; then
+            echo "❌ APK not found"
+            exit 1
+          fi
+          if [ -z "$AAB_SRC" ]; then
+            echo "❌ AAB not found"
+            exit 1
+          fi
+
+          APK_DEST="${{ env.APP_NAME }}-${VERSION}.apk"
+          AAB_DEST="${{ env.APP_NAME }}-${VERSION}.aab"
+
+          cp "$APK_SRC" "$APK_DEST"
+          cp "$AAB_SRC" "$AAB_DEST"
+
+          echo "apk=$APK_DEST" >> $GITHUB_OUTPUT
+          echo "aab=$AAB_DEST" >> $GITHUB_OUTPUT
+          echo "✅ APK: $APK_DEST"
+          echo "✅ AAB: $AAB_DEST"
+
+      - name: 📎 Upload to Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check-version-update.outputs.tag }}
+        run: |
+          gh release upload "$TAG" \
+            "${{ steps.rename.outputs.apk }}" \
+            "${{ steps.rename.outputs.aab }}" \
+            --clobber
+
+      - name: 📤 Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ needs.check-version-update.outputs.version }}
+          path: |
+            ${{ steps.rename.outputs.apk }}
+            ${{ steps.rename.outputs.aab }}
+          retention-days: 90
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Job 4: iOS 빌드
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  build-ios:
+    name: 🍎 Build iOS
+    runs-on: macos-15
+    needs: [ check-version-update, build-web ]
+    if: needs.check-version-update.outputs.should-build == 'true'
+
+    env:
+      XCODE_VERSION: "26.2"
+
+    steps:
+      - name: 🛎️ Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check-version-update.outputs.tag }}
+
+      - name: 🧰 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 🔧 Select Xcode Version
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: ✅ Verify Xcode + SDKs
+        shell: bash
+        run: |
+          set -euo pipefail
+  
+          xcodebuild -version
+          xcodebuild -showsdks
+  
+          # ✅ (추가) iOS 26 SDK 존재 여부 강제 검증
+          if ! xcodebuild -showsdks | grep -q "iphoneos26"; then
+            echo "❌ iOS 26 SDK not found on this runner."
+            echo "Installed Xcode apps:"
+            ls -d /Applications/Xcode*.app 2>/dev/null || true
+            exit 1
+          fi
+  
+          echo "✅ iOS 26 SDK detected."
+
+      - name: 📥 Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build-${{ needs.check-version-update.outputs.version }}
+          path: out/
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔄 Capacitor sync
+        run: npx cap sync ios
+
+      - name: 📝 Update iOS version
+        env:
+          VERSION: ${{ needs.check-version-update.outputs.version }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          PLIST="ios/App/App/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$PLIST"
+
+      - name: 🔐 Setup iOS signing
+        env:
+          P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+          PROVISION_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+        run: |
+          # Create keychain
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import certificate
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          echo "$P12_BASE64" | base64 -d > "$CERT_PATH"
+          security import "$CERT_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$P12_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security \
+            -T /usr/bin/xcodebuild
+
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          # Install provisioning profile
+          PROVISION_PATH="$RUNNER_TEMP/profile.mobileprovision"
+          echo "$PROVISION_BASE64" | base64 -d > "$PROVISION_PATH"
+
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+
+          # Extract both UUID (for file naming) and Name (for xcodebuild)
+          UUID=$(security cms -D -i "$PROVISION_PATH" | plutil -extract UUID raw -)
+          PROFILE_NAME=$(security cms -D -i "$PROVISION_PATH" | plutil -extract Name raw -)
+
+          cp "$PROVISION_PATH" "$PROFILE_DIR/$UUID.mobileprovision"
+
+          # Export profile name for xcodebuild (recommended method since Xcode 8)
+          echo "PROVISIONING_PROFILE_NAME=$PROFILE_NAME" >> $GITHUB_ENV
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+          echo "✅ Signing configured"
+          echo "   Profile Name: $PROFILE_NAME"
+          echo "   UUID: $UUID"
+
+      - name: ✅ Validate Xcode project & scheme
+        run: |
+          set -Eeuo pipefail
+          if [ ! -d "ios/App/App.xcodeproj" ]; then
+            echo "❌ ios/App/App.xcodeproj not found"
+            ls -la ios/App || true
+            exit 1
+          fi
+          xcodebuild -list -project ios/App/App.xcodeproj
+
+      - name: 🧩 Resolve SPM dependencies (separate step)
+        run: |
+          set -Eeuo pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project ios/App/App.xcodeproj \
+            -scheme App
+
+      - name: 🏗️ Build iOS archive
+        env:
+          TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+        run: |
+          set -Eeuo pipefail
+
+          ARCHIVE_PATH="$RUNNER_TEMP/App.xcarchive"
+          RESULT_PATH="$RUNNER_TEMP/archive.xcresult"
+          DERIVED_DATA_PATH="$RUNNER_TEMP/DerivedData"
+
+          rm -rf "$ARCHIVE_PATH" "$RESULT_PATH" "$DERIVED_DATA_PATH" || true
+
+          # xcodebuild 로그를 파일로도 남김 (추후 디버그용)
+          LOG_PATH="$RUNNER_TEMP/xcodebuild-archive.log"
+          echo "LOG_PATH=$LOG_PATH" >> $GITHUB_ENV
+
+          xcodebuild archive \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -archivePath "$ARCHIVE_PATH" \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -resultBundlePath "$RESULT_PATH" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_NAME" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            2>&1 | tee "$LOG_PATH"
+
+          # ✅ 실제 생성된 archive 경로를 동적으로 찾고 검증
+          FOUND_ARCHIVE_PATH=$(find "$RUNNER_TEMP" -maxdepth 2 -name "*.xcarchive" -type d | head -n 1 || true)
+          if [ -z "$FOUND_ARCHIVE_PATH" ]; then
+            echo "❌ No .xcarchive found under RUNNER_TEMP=$RUNNER_TEMP"
+            echo "---- RUNNER_TEMP list ----"
+            ls -la "$RUNNER_TEMP" || true
+            exit 1
+          fi
+
+          echo "ARCHIVE_PATH=$FOUND_ARCHIVE_PATH" >> $GITHUB_ENV
+          echo "✅ Archive created: $FOUND_ARCHIVE_PATH"
+
+      - name: 📦 Export IPA
+        env:
+          TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID }}
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>$TEAM_ID</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$BUNDLE_ID</key>
+              <string>$PROVISIONING_PROFILE_NAME</string>
+            </dict>
+            <key>signingCertificate</key>
+            <string>Apple Distribution</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+
+      - name: 📦 Rename IPA
+        id: rename
+        env:
+          VERSION: ${{ needs.check-version-update.outputs.version }}
+        run: |
+          IPA_SRC="$RUNNER_TEMP/export/App.ipa"
+          IPA_DEST="${{ env.APP_NAME }}-${VERSION}.ipa"
+
+          if [ ! -f "$IPA_SRC" ]; then
+            echo "❌ IPA not found at $IPA_SRC"
+            ls -la "$RUNNER_TEMP/export/" || true
+            exit 1
+          fi
+
+          cp "$IPA_SRC" "$IPA_DEST"
+          echo "ipa=$IPA_DEST" >> $GITHUB_OUTPUT
+          echo "✅ IPA: $IPA_DEST"
+
+      - name: 📎 Upload to Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check-version-update.outputs.tag }}
+        run: |
+          gh release upload "$TAG" \
+            "${{ steps.rename.outputs.ipa }}" \
+            --clobber
+
+      - name: 📤 Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-${{ needs.check-version-update.outputs.version }}
+          path: ${{ steps.rename.outputs.ipa }}
