@@ -1,0 +1,185 @@
+name: Android TWA Build
+
+on:
+  repository_dispatch:
+    types:
+      - version-bumped
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '빌드할 태그 (예: v1.0.0)'
+        required: true
+        type: string
+
+concurrency:
+  group: android-twa-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20'
+  JAVA_VERSION: '21'
+  ANDROID_API_LEVEL: '36'
+  ANDROID_BUILD_TOOLS: '36.0.0'
+  APP_NAME: 'ExampleApp'
+  WEBSITE_URL: 'https://www.example.com'
+  PACKAGE_ID: 'com.example.app'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  check-version-update:
+    name: 🔍 버전 업데이트 확인
+    runs-on: ubuntu-latest
+
+    outputs:
+      should-build: ${{ steps.check-update.outputs.should-build }}
+      tag: ${{ steps.check-update.outputs.tag }}
+      version: ${{ steps.check-update.outputs.version }}
+
+    steps:
+      - name: 🛎️ Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+
+      - name: 🔍 Check if version was actually updated
+        id: check-update
+        run: |
+          set -Eeuo pipefail
+
+          SEMVER_TAG_REGEX='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' # vX.Y.Z
+          SEMVER_VER_REGEX='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' # X.Y.Z
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # 수동 실행인 경우
+            TAG="${{ github.event.inputs.tag }}"
+            # 태그 형식 검증
+            if [[ ! $TAG =~ $SEMVER_TAG_REGEX ]]; then
+              echo "❌ 잘못된 태그 형식: $TAG (v1.2.3 형식이어야 함)"
+              exit 1
+            fi
+            VERSION="${TAG#v}"
+            echo "should-build=true" >> $GITHUB_OUTPUT
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "✅ 수동 실행: $TAG"
+          else
+            RAW_TAG="${{ github.event.client_payload.new_tag }}"
+            RAW_VER="${{ github.event.client_payload.new_version }}"
+
+            if [ -n "$RAW_TAG" ] && [[ "$RAW_TAG" =~ $SEMVER_TAG_REGEX ]]; then
+              VERSION="${RAW_TAG#v}"
+              echo "should-build=true"  >> "$GITHUB_OUTPUT"
+              echo "tag=$RAW_TAG"       >> "$GITHUB_OUTPUT"
+              echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
+              echo "✅ repository_dispatch tag: $RAW_TAG"
+            elif [ -n "$RAW_VER" ] && [[ "$RAW_VER" =~ $SEMVER_VER_REGEX ]]; then
+              echo "should-build=true"  >> "$GITHUB_OUTPUT"
+              echo "tag=v$RAW_VER"      >> "$GITHUB_OUTPUT"
+              echo "version=$RAW_VER"   >> "$GITHUB_OUTPUT"
+              echo "✅ repository_dispatch version: $RAW_VER"
+            else
+              echo "should-build=false" >> "$GITHUB_OUTPUT"
+              echo "📝 repository_dispatch payload에 유효한 tag/version이 없습니다. 빌드 생략"
+            fi
+          fi
+
+  # 🚀 실제 APK & AAB 빌드 (새 버전이 있을 때만)
+  build-app:
+    name: 🤖 Build Android APK & AAB
+    runs-on: ubuntu-latest
+    needs: check-version-update
+    if: needs.check-version-update.outputs.should-build == 'true'
+
+    defaults:
+      run:
+        working-directory: android
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check-version-update.outputs.tag }}
+          fetch-depth: 0
+
+      - name: 🏷️ 버전 정보
+        run: |
+          echo "🏷️ 빌드할 버전: ${{ needs.check-version-update.outputs.tag }}"
+          echo "📦 버전 번호: ${{ needs.check-version-update.outputs.version }}"
+
+      - name: ☕ JDK 설정
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: 🤖 Android SDK 설정
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: ${{ env.ANDROID_API_LEVEL }}
+          build-tools: ${{ env.ANDROID_BUILD_TOOLS }}
+
+      - name: Android Keystore base64 디코딩
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          # base64로 인코딩된 keystore 복원
+          echo "$ANDROID_KEYSTORE_B64" | base64 -d > app/upload-keystore.jks
+
+          # Gradle에서 읽도록 환경변수로 경로 기록
+          echo "KEYSTORE_PATH=$PWD/app/upload-keystore.jks" >> $GITHUB_ENV
+
+      - name: APK & AAB 파일 생성
+        # Gradle을 통해 release APK + AAB 동시 생성
+        run: |
+          # 태그에서 버전 문자열 추출
+          VERSION="${{ needs.check-version-update.outputs.version }}"
+          
+          # 버전 문자열을 major/minor/patch 분리
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+          # 버전 코드를 정수로 계산 (major * 10000 + minor * 100 + patch)
+          VERSION_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+          
+          echo "🏷️ Version name: $VERSION"
+          echo "🔢 Version code: $VERSION_CODE"
+          
+          ./gradlew --no-daemon clean \
+            -PappVersionName="$VERSION" \
+            -PappVersionCode="$VERSION_CODE" \
+            assembleRelease \
+            bundleRelease
+
+        env:
+          # build.gradle에서 읽는 서명 관련 값
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: APK Artifact 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-apk-${{ needs.check-version-update.outputs.version }}
+          path: android/app/build/outputs/apk/release/*.apk
+          retention-days: 90
+
+      - name: AAB Artifact 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-aab-${{ needs.check-version-update.outputs.version }}
+          path: android/app/build/outputs/bundle/release/*.aab
+          retention-days: 90
+
+      - name: APK, AAB 파일 릴리즈 업로드
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.check-version-update.outputs.tag }}
+        run: |
+          echo "📦 GitHub Release에 APK/AAB 업로드: $TAG"
+          gh release upload "$TAG" \
+            app/build/outputs/apk/release/*.apk \
+            app/build/outputs/bundle/release/*.aab
