@@ -33,6 +33,7 @@ jobs:
       should-build: ${{ steps.check-update.outputs.should-build }}
       tag: ${{ steps.check-update.outputs.tag }}
       version: ${{ steps.check-update.outputs.version }}
+      version_code: ${{ steps.check-update.outputs.version_code }}
 
     steps:
       - name: 🛎️ Checkout
@@ -47,6 +48,11 @@ jobs:
 
           SEMVER_TAG_REGEX='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' # vX.Y.Z
           SEMVER_VER_REGEX='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' # X.Y.Z
+          
+          SHOULD_BUILD="false"
+          TAG=""
+          VERSION=""
+          VERSION_CODE=""
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             # 수동 실행인 경우
@@ -57,6 +63,7 @@ jobs:
               exit 1
             fi
             VERSION="${TAG#v}"
+            SHOULD_BUILD="true"
             echo "should-build=true" >> $GITHUB_OUTPUT
             echo "tag=$TAG" >> $GITHUB_OUTPUT
             echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -66,12 +73,17 @@ jobs:
             RAW_VER="${{ github.event.client_payload.new_version }}"
 
             if [ -n "$RAW_TAG" ] && [[ "$RAW_TAG" =~ $SEMVER_TAG_REGEX ]]; then
+              TAG="$RAW_TAG"
               VERSION="${RAW_TAG#v}"
+              SHOULD_BUILD="true"
               echo "should-build=true"  >> "$GITHUB_OUTPUT"
               echo "tag=$RAW_TAG"       >> "$GITHUB_OUTPUT"
               echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
               echo "✅ repository_dispatch tag: $RAW_TAG"
             elif [ -n "$RAW_VER" ] && [[ "$RAW_VER" =~ $SEMVER_VER_REGEX ]]; then
+              TAG="$RAW_TAG"
+              VERSION="${RAW_TAG#v}"
+              SHOULD_BUILD="true"
               echo "should-build=true"  >> "$GITHUB_OUTPUT"
               echo "tag=v$RAW_VER"      >> "$GITHUB_OUTPUT"
               echo "version=$RAW_VER"   >> "$GITHUB_OUTPUT"
@@ -80,6 +92,33 @@ jobs:
               echo "should-build=false" >> "$GITHUB_OUTPUT"
               echo "📝 repository_dispatch payload에 유효한 tag/version이 없습니다. 빌드 생략"
             fi
+          fi
+          
+          echo "should-build=$SHOULD_BUILD" >> "$GITHUB_OUTPUT"
+
+          if [ "$SHOULD_BUILD" = "true" ]; then
+            # VERSION_CODE 생성 (v0.1.15 -> 000115 -> 115)
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+            # 각 파트 0~99 제한 (2자리 스키마 고정)
+            if [ "$MAJOR" -gt 99 ] || [ "$MINOR" -gt 99 ] || [ "$PATCH" -gt 99 ]; then
+              echo "❌ VERSION_CODE 생성 실패: major/minor/patch는 0~99 범위여야 함 (현재: $VERSION)"
+              exit 1
+            fi
+
+            PADDED="$(printf "%02d%02d%02d" "$MAJOR" "$MINOR" "$PATCH")"
+            VERSION_CODE="$(echo "$PADDED" | sed 's/^0*//')"
+            if [ -z "$VERSION_CODE" ]; then
+              VERSION_CODE="1"
+            fi
+
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+
+            echo "✅ TAG=$TAG"
+            echo "✅ VERSION=$VERSION"
+            echo "✅ VERSION_CODE=$VERSION_CODE (from $PADDED)"
           fi
 
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -175,7 +214,7 @@ jobs:
       - name: 🏗️ Build APK
         env:
           VERSION_NAME: ${{ needs.check-version-update.outputs.version }}
-          VERSION_CODE: ${{ github.run_number }}
+          VERSION_CODE: ${{ needs.check-version-update.outputs.version_code }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -191,7 +230,7 @@ jobs:
       - name: 🏗️ Build AAB
         env:
           VERSION_NAME: ${{ needs.check-version-update.outputs.version }}
-          VERSION_CODE: ${{ github.run_number }}
+          VERSION_CODE: ${{ needs.check-version-update.outputs.version_code }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -283,10 +322,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-  
+          
           xcodebuild -version
           xcodebuild -showsdks
-  
+          
           # ✅ (추가) iOS 26 SDK 존재 여부 강제 검증
           if ! xcodebuild -showsdks | grep -q "iphoneos26"; then
             echo "❌ iOS 26 SDK not found on this runner."
@@ -294,7 +333,7 @@ jobs:
             ls -d /Applications/Xcode*.app 2>/dev/null || true
             exit 1
           fi
-  
+          
           echo "✅ iOS 26 SDK detected."
 
       - name: 📥 Download web build

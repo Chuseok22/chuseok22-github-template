@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: capacitor-upload-${{ github.event.client_payload.tag || github.event.inputs.tag }}
+  group: capacitor-upload-${{ github.event.client_payload.run_id || github.run_id }}-${{ github.event.client_payload.tag || github.event.inputs.tag }}
   cancel-in-progress: false
 
 env:
@@ -32,6 +32,10 @@ env:
 
   # Google Play 업로드 트랙: internal / alpha / beta / production
   GOOGLE_PLAY_TRACK: "internal"
+
+  # draft 앱이면 completed 불가 -> 일단 draft로 고정
+  # 앱이 draft 상태를 벗어나면 "completed"로 변경하여 내부 테스트 '출시'까지 자동화 가능
+  GOOGLE_PLAY_RELEASE_STATUS: "completed"
 
   # 표시용 프로젝트명
   PROJECT_DISPLAY_NAME: "AppName"
@@ -136,7 +140,7 @@ jobs:
           releaseFiles: ${{ env.AAB_PATH }}
           track: ${{ env.GOOGLE_PLAY_TRACK }}
           releaseName: ${{ needs.resolve_inputs.outputs.release_name }}
-          status: completed
+          status: ${{ env.GOOGLE_PLAY_RELEASE_STATUS }}
 
   upload_ios:
     name: Upload iOS (IPA) to TestFlight
@@ -207,29 +211,34 @@ jobs:
           KEY_DIR="$RUNNER_TEMP/appstoreconnect"
           mkdir -p "$KEY_DIR"
 
-          P8_PATH="$KEY_DIR/AuthKey_${ASC_KEY_ID}.p8"
-          export P8_PATH # python에서 os.environ로 읽도록 환경변수로 export
+          API_KEY_INFO="$KEY_DIR/api_key.json"
+          export API_KEY_INFO
 
-          # macOS/Linux base64 옵션 차이 제거를 위해 python으로 디코딩
+          # api_key_path(JSON 파일)는 "key"(p8 내용) 필드를 요구함.
+          # key_filepath/key_content는 JSON 키로는 유효하지 않음. :contentReference[oaicite:6]{index=6}
           python3 - <<'PY'
-          import base64, os
-          p8_path = os.environ["P8_PATH"]
-          data = os.environ["ASC_PRIVATE_KEY_BASE64"].strip()
-          with open(p8_path, "wb") as f:
-            f.write(base64.b64decode(data))
+          import base64, json, os
+
+          key_id = os.environ["ASC_KEY_ID"].strip()
+          issuer_id = os.environ["ASC_ISSUER_ID"].strip()
+          key_b64 = os.environ["ASC_PRIVATE_KEY_BASE64"].strip()
+
+          key_text = base64.b64decode(key_b64).decode("utf-8").strip()
+
+          payload = {
+            "key_id": key_id,
+            "issuer_id": issuer_id,
+            "key": key_text,
+            "in_house": False
+          }
+
+          path = os.environ["API_KEY_INFO"]
+          with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
           PY
 
-          API_KEY_INFO="$KEY_DIR/api_key_info.json"
-          cat > "$API_KEY_INFO" <<EOF
-          {
-            "key_id": "${ASC_KEY_ID}",
-            "issuer_id": "${ASC_ISSUER_ID}",
-            "key_filepath": "${P8_PATH}"
-          }
-          EOF
-
           echo "ASC_API_KEY_INFO=$API_KEY_INFO" >> "$GITHUB_ENV"
-          echo "✅ App Store Connect API key files ready"
+          echo "✅ App Store Connect API key JSON ready: $API_KEY_INFO"
 
       - name: 🚀 Upload to TestFlight (pilot)
         env:
