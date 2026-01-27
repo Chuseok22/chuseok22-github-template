@@ -39,7 +39,6 @@ jobs:
       # application-prod.yml 파일을 빌드 전에 생성
       - name: Create application-prod.yml from secret
         run: |
-          mkdir -p src/main/resources
           cat << 'EOF' > ./src/main/resources/application-prod.yml
           ${{ secrets.APPLICATION_PROD_YML }}
           EOF
