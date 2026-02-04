@@ -136,6 +136,16 @@ jobs:
         with:
           ref: ${{ needs.check-version-update.outputs.tag }}
 
+      - name: Create .env.production file
+        run: |
+          set -Eeuo pipefail
+          if [ -z "${{ secrets.ENV_MAIN }}" ]; then
+            echo "❌ ENV_MAIN is empty"
+            exit 1
+          fi
+          echo -e "${{ secrets.ENV_MAIN }}" > .env.production
+          echo "✅ .env.production created"
+
       - name: 🧰 Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -356,6 +366,10 @@ jobs:
           PLIST="ios/App/App/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$PLIST"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$PLIST"
+
+          # Export Compliance(암호화) 플래그
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST"
 
       - name: 🔐 Setup iOS signing
         env:

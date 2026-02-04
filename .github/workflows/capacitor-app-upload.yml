@@ -44,7 +44,12 @@ env:
   IOS_BUNDLE_ID: "com.example.app"
 
   # fastlane 버전 고정 (원하는 버전으로 조정)
-  FASTLANE_VERSION: "2.219.0" # fastlane 버전 고정(안정성)
+  FASTLANE_VERSION: "2.231.1" # fastlane 버전 고정(안정성)
+
+  # Export Compliance 답변
+  # true = non-exempt encryption 사용
+  # false = non-exempt encryption 미사용 (면제 케이스)
+  IOS_USES_NON_EXEMPT_ENCRYPTION: "false"
 
 jobs:
   resolve_inputs:
@@ -247,7 +252,12 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          fastlane pilot upload \
-            --api_key_path "$ASC_API_KEY_INFO" \
-            --ipa "$IPA_PATH" \
-            --changelog "$CHANGELOG"
+          # BuildWatcher(대기)로 인한 중복 매칭 에러 회피
+          # - uses_non_exempt_encryption: Export Compliance 질문 자동 처리
+          # - skip_waiting_for_build_processing: 업로드 후 처리 완료까지 대기 스킵
+          fastlane run upload_to_testflight \
+            api_key_path:"$ASC_API_KEY_INFO" \
+            ipa:"$IPA_PATH" \
+            changelog:"$CHANGELOG" \
+            uses_non_exempt_encryption:${IOS_USES_NON_EXEMPT_ENCRYPTION} \
+            skip_waiting_for_build_processing:true
