@@ -85,8 +85,8 @@ jobs:
             CONTAINER_NAME="${PROJECT_NAME}${IMG_SUFFIX}"
             APP_PORT="${{ env.APP_EXPOSE_PORT }}"
             
-            MAIN_PORT=${{ env.MAIN_PORT }}"
-            TEST_PORT=${{ env.TEST_PORT }}"
+            MAIN_PORT="${{ env.MAIN_PORT }}"
+            TEST_PORT="${{ env.TEST_PORT }}"
             
             echo "브랜치=${BRANCH}"
             echo "이미지=${IMAGE}"
