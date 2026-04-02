@@ -1,41 +1,201 @@
 ---
 name: plan
-description: Create a concrete implementation plan after exploration using project-specific rules and conventions.
+description: explore 결과, 프로젝트 규칙, TODO.md, 사용자 요청을 바탕으로 현재 프로젝트 구조에 맞는 구체적인 구현 계획을 수립한다.
 disable-model-invocation: true
-context: fork
-agent: flow-plan
-argument-hint: [ task-summary ]
+model: opus
+allowed-tools: Read, Glob, Grep, LS
+argument-hint: [ 작업-요약 ]
 ---
 
 # Plan
 
-Task: $ARGUMENTS
+작업: $ARGUMENTS
 
-Goals:
+이 단계는 구현을 수행하는 단계가 아니다.  
+이 단계의 목적은 `explore`에서 파악한 프로젝트 구조와 규칙을 바탕으로, 실제 구현 가능한 계획을 구체적으로 세우는 것이다.
 
-1. Load current project context from repository instructions.
-2. Convert exploration findings into a concrete plan.
-3. Define file-level responsibilities and verification strategy.
+## 기본 원칙
 
-Required output:
+1. 반드시 현재 대화에 존재하는 `explore` 결과를 우선 입력으로 사용한다.
+2. 프로젝트 root `CLAUDE.md`를 확인한다.
+3. 아래 규칙 파일을 반드시 확인한다.
+    - `.claude/rules/00-project-overview.md`
+    - `.claude/rules/10-architecture-and-boundaries.md`
+    - `.claude/rules/20-team-conventions.md`
+4. 프로젝트 root 경로의 `TODO.md`를 반드시 읽는다.
+5. 사용자 요청 내용과 `TODO.md`의 현재 상태를 함께 고려하여 구현 계획을 세운다.
+6. 계획은 현재 프로젝트 구조와 기존 패턴을 기준으로 수립해야 한다.
+7. 구현 범위를 벗어나는 추상화나 불필요한 리팩터링은 계획에 포함하지 않는다.
 
-- Goal summary
-- Files to change
-- Why each file changes
-- Risks and edge cases
-- Test strategy
-- Validation commands
-- Review focus points
-- Rollback considerations
-- Implementation handoff
+## 목표
 
-Implementation handoff format:
+1. 현재 작업의 목표를 명확하게 다시 정의한다.
+2. `explore` 결과를 바탕으로 변경이 필요한 파일과 책임 범위를 확정한다.
+3. 각 파일에서 무엇을 구현해야 하는지 구체적으로 정리한다.
+4. 구현 시 지켜야 하는 제약사항과 코드 스타일 규칙을 반영한다.
+5. 테스트 전략, 검증 방식, 리뷰 포인트까지 포함한 실행 가능한 계획을 만든다.
+6. 다음 `implement` 단계가 추가 탐색 없이 바로 작업할 수 있도록 handoff를 작성한다.
 
-- Exact files to edit
-- Expected responsibility of each file
-- Constraints that implementation must obey
-- Required tests to add
-- Required validations to run later
+## 반드시 확인할 내용
 
-Do not modify files.
-Do not produce final implementation code.
+### 1. explore 결과
+
+아래 정보를 우선 활용한다.
+
+- 현재 작업 목적
+- 관련 파일
+- 현재 구조
+- 현재 동작 방식
+- 기존 패턴
+- 프로젝트 규칙 기반 제약
+- 위험 요소
+- 미확인 사항
+- Planning Handoff
+
+### 2. TODO.md
+
+`TODO.md`를 읽고 아래를 확인한다.
+
+- 현재 작업과 직접 관련된 TODO 항목
+- 이미 완료된 항목과 아직 남은 항목
+- 이번 구현이 TODO 흐름 안에서 어느 위치에 있는지
+- 이번 계획에 포함해야 할 범위와 제외해야 할 범위
+
+### 3. 사용자 요청
+
+사용자 요청에서 아래를 다시 정리한다.
+
+- 반드시 구현해야 하는 것
+- 구현하지 말아야 하는 것
+- 범위 제한
+- 우선순위
+- 기대 결과
+
+### 4. 프로젝트 구조와 책임 경계
+
+계획 수립 시 반드시 아래를 반영한다.
+
+- 기능 / 모듈 구조
+- 계층별 책임
+- 파일 배치 규칙
+- 기존 패턴 재사용 기준
+- 코드 스타일 및 팀 규칙
+
+## 계획 수립 원칙
+
+- 구현 계획은 반드시 현재 프로젝트 구조에 맞아야 한다.
+- 새 구조를 제안하기 전에 기존 구조를 우선 재사용해야 한다.
+- 각 파일 변경 이유와 책임이 명확해야 한다.
+- 계획은 구현 가능한 수준으로 구체적이어야 한다.
+- 테스트와 검증 계획은 구현 계획과 함께 포함해야 한다.
+- TODO.md 흐름과 충돌하지 않아야 한다.
+- 미확인 사항은 추측으로 덮지 말고 명시해야 한다.
+
+## 금지 사항
+
+- 파일을 수정하지 않는다.
+- 구현 코드를 작성하지 않는다.
+- 최종 코드 예시를 출력하지 않는다.
+- explore 없이 새 구조를 임의로 설계하지 않는다.
+- TODO.md와 사용자 요청을 무시하지 않는다.
+- 기존 패턴이 있는데 새로운 패턴을 우선 제안하지 않는다.
+
+## 출력 규칙
+
+반드시 아래 **정확한 구조**로 출력한다.
+
+## Plan Result
+
+### Objective
+
+[이번 작업의 목표를 1~2줄로 요약]
+
+### Requested Scope
+
+- [사용자 요청 기준 반드시 포함해야 하는 범위]
+- [제외해야 하는 범위]
+- [TODO.md와 연결되는 범위]
+
+### Plan Summary
+
+[구현 방향을 짧게 요약]
+
+### Files To Change
+
+- `path/file.ts` — 변경 이유
+- `path/file.tsx` — 변경 이유
+
+### File-Level Responsibilities
+
+- `path/file.ts` — 어떤 책임으로 어떤 변경을 수행해야 하는지
+- `path/file.tsx` — 어떤 책임으로 어떤 변경을 수행해야 하는지
+
+### Implementation Strategy
+
+- [현재 프로젝트 구조에 맞는 구현 전략]
+- [기존 패턴 재사용 방식]
+- [새로 추가되는 로직 또는 구조]
+- [영향 범위]
+
+### Constraints
+
+- [프로젝트 규칙 기반 제약]
+- [아키텍처 제약]
+- [코드 스타일 / 팀 규칙 제약]
+- [TODO.md 기반 범위 제약]
+
+### Risks And Edge Cases
+
+- [구현 시 주의할 위험]
+- [예외 상황]
+- [놓치기 쉬운 케이스]
+
+### Test Strategy
+
+- [추가 또는 수정해야 하는 테스트 방향]
+- [검증해야 하는 주요 시나리오]
+- [중요한 엣지 케이스]
+
+### Validation Commands
+
+- `명령어`
+- `명령어`
+
+### Review Focus Points
+
+- [리뷰 시 반드시 확인해야 하는 포인트]
+- [구조 / 책임 / 규칙 위반 여부]
+- [회귀 가능성]
+
+### Rollback Considerations
+
+- [문제 발생 시 되돌릴 포인트]
+- [영향 범위 축소 방안]
+
+### Open Questions
+
+- [아직 확인되지 않은 사항]
+- [구현 전에 추가 확인이 필요한 사항]
+
+### Implementation Handoff
+
+- **Goal**: [구현 목표]
+- **Files**: [정확히 수정해야 할 파일 목록]
+- **Responsibilities**: [각 파일이 맡아야 하는 책임]
+- **Patterns**: [따라야 하는 기존 패턴과 참조 파일]
+- **Constraints**: [구현 시 반드시 지켜야 하는 제약]
+- **Tests**: [추가/수정해야 하는 테스트]
+- **Validation**: [나중에 실행해야 하는 검증]
+- **Risks**: [구현 시 주의할 위험]
+- **Open Questions**: [미해결 질문]
+
+## 품질 기준
+
+좋은 plan 결과는 아래를 만족해야 한다.
+
+- explore 결과를 실제 계획으로 변환했다.
+- TODO.md와 사용자 요청을 함께 반영했다.
+- 어떤 파일을 왜 바꾸는지가 명확하다.
+- 구현 전략이 현재 프로젝트 구조와 기존 패턴에 맞는다.
+- implement 단계가 추가 탐색 없이 바로 작업할 수 있다.
+- 테스트, 검증, 리뷰 포인트까지 포함되어 있다.

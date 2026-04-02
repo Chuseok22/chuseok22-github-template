@@ -1,37 +1,194 @@
 ---
 name: review
-description: Review the implementation against project rules, architecture boundaries, and maintainability expectations.
+description: explore, plan, implement 결과와 실제 변경 파일을 기준으로 구현 품질을 검토한다. 구조 적합성, 계획 준수, 단일 책임 원칙, 유지보수성, 보일러플레이트 여부를 확인한다.
 disable-model-invocation: true
-context: fork
-agent: flow-review
-argument-hint: [ task-summary ]
+model: sonnet
+allowed-tools: Read, Glob, Grep, LS
+argument-hint: [ 작업-요약 ]
 ---
 
 # Review
 
-Task: $ARGUMENTS
+작업: $ARGUMENTS
 
-Goals:
+이 단계는 구현된 결과를 검토하는 단계다.  
+이 단계에서는 코드를 수정하지 않고, 현재 대화에 존재하는 `explore`, `plan`, `implement` 결과와 실제 변경된 파일을 함께 읽어 구현이 적절한지 판단한다.
 
-1. Load current project context from repository instructions.
-2. Review the implemented change without editing code.
-3. Detect correctness, boundary, maintainability, and regression risks.
+## 기본 원칙
 
-Required output:
+1. 현재 대화의 `explore` 결과를 먼저 참고한다.
+2. 현재 대화의 `plan` 결과를 먼저 참고한다.
+3. 현재 대화의 `implement` 결과를 먼저 참고한다.
+4. 프로젝트 root `CLAUDE.md`를 확인한다.
+5. 아래 규칙 파일을 반드시 확인한다.
+    - `.claude/rules/00-project-overview.md`
+    - `.claude/rules/10-architecture-and-boundaries.md`
+    - `.claude/rules/20-team-conventions.md`
+6. 실제로 변경된 파일을 다시 읽고, 구현 결과가 계획과 규칙에 맞는지 검토한다.
+7. 이 단계에서는 절대 파일을 수정하지 않는다.
 
-- Review scope
-- Strengths
-- Blocking issues
-- Non-blocking issues
-- Rule violations
-- Suggested fixes
-- Final judgment:
-    - PASS
-    - REWORK REQUIRED
+## 목표
 
-Rules:
+1. 구현 결과가 `explore`에서 파악한 프로젝트 구조와 충돌하지 않는지 확인한다.
+2. 구현 결과가 `plan`에서 수립한 계획을 적절하게 반영했는지 확인한다.
+3. 구현 결과가 프로젝트 규칙, 구조, 코드 컨벤션을 지켰는지 확인한다.
+4. 단일 책임 원칙을 잘 지켰는지 검토한다.
+5. 유지보수에 적합한 구조인지 검토한다.
+6. 중복 구현 또는 불필요한 보일러플레이트가 발생하지 않았는지 검토한다.
+7. 다음 단계로 진행 가능한 상태인지 `PASS` 또는 `REWORK REQUIRED`로 판정한다.
 
-- If there is any blocking issue, the final judgment must be `REWORK REQUIRED`.
-- If the final judgment is `REWORK REQUIRED`, the next workflow step must return to `/implement` before continuing to `/test-code`.
-- Do not modify files.
-- Be explicit about severity.
+## 반드시 확인할 내용
+
+### 1. explore 결과
+
+아래를 기준으로 구조 적합성을 검토한다.
+
+- 프로젝트 구조
+- 기능 / 모듈 경계
+- 기존 패턴
+- 책임 분리 기준
+- 구조적 제약사항
+
+### 2. plan 결과
+
+아래를 기준으로 계획 준수 여부를 검토한다.
+
+- 구현 목표
+- 변경 대상 파일
+- 파일별 책임
+- 구현 전략
+- 제약사항
+- 테스트 전략
+- 구현 handoff
+
+### 3. implement 결과
+
+아래를 기준으로 실제 구현 범위를 검토한다.
+
+- 변경된 파일
+- 실제 구현 내용
+- 구현 중 내린 결정
+- 후속 작업
+
+### 4. 실제 변경 파일
+
+아래를 기준으로 실제 코드 품질을 검토한다.
+
+- 계획대로 구현되었는지
+- 역할 분리가 적절한지
+- 책임이 과도하게 섞이지 않았는지
+- 유지보수에 불리한 구조가 아닌지
+- 유사한 코드가 중복 생성되지 않았는지
+- 기존 패턴을 무시하고 새 구조를 억지로 도입하지 않았는지
+
+## 검토 기준
+
+### A. 계획 준수
+
+- `plan`에서 정한 범위 내에서 구현되었는가
+- 불필요한 파일 수정이 발생하지 않았는가
+- 각 파일이 계획된 책임에 맞게 수정되었는가
+
+### B. 구조 적합성
+
+- 프로젝트 구조와 책임 경계를 지켰는가
+- 기능별 분리와 레이어 구분이 적절한가
+- 공용 영역과 기능 영역의 경계를 침범하지 않았는가
+
+### C. 단일 책임 원칙
+
+- 하나의 파일 / 함수 / 컴포넌트가 너무 많은 책임을 가지지 않는가
+- UI / 상태 / 데이터 / 비즈니스 로직이 과도하게 섞이지 않았는가
+- 한 곳에 몰아넣기식 구현이 발생하지 않았는가
+
+### D. 유지보수성
+
+- 읽기 쉬운가
+- 구조가 예측 가능한가
+- 기존 팀 규칙과 스타일을 따르는가
+- 이후 수정이나 확장이 쉬운가
+
+### E. 보일러플레이트 / 중복
+
+- 기존 패턴을 재사용하지 않고 유사 코드를 새로 복제하지 않았는가
+- 불필요한 래퍼, 과도한 추상화, 반복 코드가 늘어나지 않았는가
+- 파일 수만 늘고 가치가 낮은 분리가 발생하지 않았는가
+
+### F. 위험 요소
+
+- 회귀 가능성이 있는가
+- 경계 케이스가 빠졌는가
+- 이후 테스트 단계에서 반드시 확인해야 할 위험이 있는가
+
+## 금지 사항
+
+- 파일을 수정하지 않는다.
+- 구현 코드를 새로 작성하지 않는다.
+- 계획에 없는 새 구조를 제안하지 않는다.
+- 근거 없이 추측으로 판정하지 않는다.
+- 단순 인상평만 남기지 않는다.
+
+## 출력 규칙
+
+반드시 아래 **정확한 구조**로 출력한다.
+
+## Review Result
+
+### Objective
+
+[이번 리뷰의 목적을 1~2줄로 요약]
+
+### Review Scope
+
+- [검토한 구현 범위]
+- [검토 기준이 된 결과물: explore / plan / implement / 실제 파일]
+
+### Strengths
+
+- [잘된 점]
+- [기존 패턴을 잘 재사용한 점]
+- [구조적으로 적절한 점]
+
+### Blocking Issues
+
+- [반드시 수정해야 하는 문제]
+- [계획 위반 / 구조 위반 / 책임 위반 / 유지보수상 치명 문제]
+
+### Non-Blocking Issues
+
+- [당장 막지는 않지만 개선이 필요한 점]
+- [경미한 구조 문제 / 표현 문제 / 중복 가능성]
+
+### Rule Violations
+
+- [프로젝트 규칙 위반 사항]
+- [아키텍처 경계 또는 팀 규칙 위반 사항]
+
+### SRP / Maintainability Review
+
+- [단일 책임 원칙 관점에서의 판단]
+- [유지보수성 관점에서의 판단]
+- [보일러플레이트 또는 중복 관점에서의 판단]
+
+### Suggested Fixes
+
+- [무엇을 어떤 방향으로 수정해야 하는지]
+- [다음 implement 단계에서 우선적으로 처리할 점]
+
+### Final Judgment
+
+- PASS
+- REWORK REQUIRED
+
+## 판정 규칙
+
+- blocking issue가 하나라도 있으면 최종 판정은 반드시 `REWORK REQUIRED`다.
+- blocking issue가 없고 다음 단계 진행이 가능하면 `PASS`다.
+- `REWORK REQUIRED`인 경우, 사용자에게 반드시 `/implement`를 다시 실행하라고 명시해야 한다.
+- `REWORK REQUIRED`인 경우, 다시 구현할 때 우선 해결해야 하는 blocking issue를 함께 정리해야 한다.
+
+## 추가 지시
+
+최종 판정이 `REWORK REQUIRED`이면 아래 문장을 반드시 포함한다.
+
+`다음 단계로 진행하지 말고, 먼저 /implement를 다시 실행하여 아래 Blocking Issues를 해결해야 한다.`

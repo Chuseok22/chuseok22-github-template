@@ -1,40 +1,163 @@
 ---
 name: explore
-description: Explore the current project for a task before planning. Read project rules, map relevant files, existing patterns, constraints, and unknowns.
+description: 작업에 들어가기 전에 현재 프로젝트의 구조, 책임 경계, 코드 스타일, 재사용 가능한 기존 패턴을 탐색하고 정리한다. 이후 plan 단계가 바로 계획을 세울 수 있도록 필요한 근거와 제약을 정리한다.
 disable-model-invocation: true
-context: fork
-agent: flow-explore
-argument-hint: [ task-summary ]
+model: sonnet
+allowed-tools: Read, Glob, Grep, LS
+argument-hint: [ 작업-요약 ]
 ---
 
 # Explore
 
-Task: $ARGUMENTS
+작업: $ARGUMENTS
 
-Goals:
+## 목적
 
-1. Load current project context from the repository instructions.
-2. Identify the minimum relevant files and modules.
-3. Find existing implementation patterns that should be reused.
-4. Summarize constraints, risks, and unknowns.
+이 단계의 목적은 구현을 시작하는 것이 아니라, 현재 프로젝트를 이해하고 다음 `plan` 단계가 정확한 계획을 세울 수 있도록 필요한 정보를 정리하는 것이다.
 
-Required output:
+반드시 아래를 수행한다.
 
-- Objective
-- Relevant files
-- Current behavior
-- Existing patterns to follow
-- Constraints from project rules
-- Unknowns / open questions
-- Planning handoff
+1. 프로젝트 root `CLAUDE.md`를 읽는다.
+2. 아래 규칙 파일을 반드시 읽는다.
+    - `.claude/rules/00-project-overview.md`
+    - `.claude/rules/10-architecture-and-boundaries.md`
+    - `.claude/rules/20-team-conventions.md`
+3. 현재 작업과 직접 관련된 파일, 모듈, 디렉터리를 식별한다.
+4. 기존 구현 방식, 재사용 가능한 패턴, 책임 분리 방식, 코드 스타일을 확인한다.
+5. 다음 `plan` 단계가 바로 활용할 수 있도록 근거 기반으로 정리한다.
 
-Planning handoff format:
+## 반드시 확인할 내용
 
-- Problem statement
-- Relevant file paths
-- Reusable patterns
-- Constraints that planning must obey
-- Open questions that remain unresolved
+### 1. 프로젝트 구조
 
-Do not modify files.
-Do not produce implementation code.
+아래를 중심으로 현재 프로젝트 구조를 파악한다.
+
+- 현재 작업이 속하는 기능 또는 모듈
+- 관련 디렉터리 구조
+- 관련 파일들의 역할 분리 방식
+- 공통 레이어와 기능 레이어의 경계
+- 수정이 필요한 범위와 건드리면 안 되는 범위
+
+### 2. 아키텍처와 책임 경계
+
+아래를 확인한다.
+
+- 현재 기능이 어느 계층에 속하는지
+- 비즈니스 로직, UI 로직, 상태 관리, API 호출, 유틸리티가 각각 어디에 위치하는지
+- 기존 프로젝트에서 어떤 책임 분리 기준을 사용하는지
+- 새 코드를 추가할 때 따라야 하는 파일 배치 기준이 무엇인지
+
+### 3. 코드 스타일과 팀 규칙
+
+아래를 확인한다.
+
+- 네이밍 규칙
+- 타입 선언 방식
+- 함수 / 컴포넌트 / 클래스 작성 스타일
+- 에러 처리 방식
+- 테스트 작성 방식이 현재 작업에 영향을 주는지
+- 금지된 패턴 또는 피해야 하는 구현 방식이 무엇인지
+
+### 4. 기존 패턴과 재사용 포인트
+
+아래를 찾아야 한다.
+
+- 현재 작업과 유사한 기존 구현
+- 그대로 재사용하거나 참고해야 하는 패턴
+- 새로 만들지 말고 기존 것을 따라야 하는 구조
+- 동일한 책임을 가진 기존 파일 또는 컴포넌트
+
+### 5. 계획 수립에 필요한 제약
+
+아래를 정리한다.
+
+- 현재 작업이 반드시 따라야 하는 프로젝트 규칙
+- 수정 가능 범위
+- 영향 범위
+- 구현 전에 확인이 필요한 미확인 사항
+- 설계상 위험 요소 또는 충돌 가능성
+
+## 금지 사항
+
+- 파일을 수정하지 않는다.
+- 구현 코드를 작성하지 않는다.
+- 성급하게 해결책을 확정하지 않는다.
+- 근거 없이 구조를 추측하지 않는다.
+- 기존 패턴이 있는데 새로운 패턴을 제안하지 않는다.
+
+## 출력 규칙
+
+반드시 아래 **정확한 구조**로 출력한다.
+
+## Explore Result
+
+### Objective
+
+[현재 작업을 1~2줄로 요약]
+
+### Project Context Summary
+
+- 현재 작업이 속한 기능 / 모듈:
+- 관련 주요 디렉터리:
+- 현재 작업이 위치한 계층 또는 책임 영역:
+- 이번 작업에서 우선 참고해야 하는 규칙 파일:
+
+### Relevant Files
+
+- `path/file.ts` — 역할 설명
+- `path/file.tsx` — 역할 설명
+
+### Current Structure
+
+[현재 기능 또는 모듈의 구조를 설명]
+
+### Current Behavior
+
+[현재 동작 방식 또는 현재 구현 상태 설명]
+
+### Existing Patterns to Follow
+
+- 패턴명: `참조 파일 경로` — 설명
+- 패턴명: `참조 파일 경로` — 설명
+
+### Code Style / Team Conventions
+
+- [현재 작업에 직접 영향을 주는 코드 스타일 또는 팀 규칙]
+- [반드시 따라야 하는 작성 방식]
+- [피해야 하는 방식]
+
+### Constraints from Project Rules
+
+- [프로젝트 규칙에서 도출된 제약사항]
+- [아키텍처 또는 책임 경계 제약]
+- [수정 범위 제약]
+
+### Risks
+
+- [계획 수립 또는 구현 전에 고려해야 하는 위험 요소]
+
+### Unknowns / Open Questions
+
+- [미확인 사항]
+- [추가 확인이 필요한 질문]
+
+### Planning Handoff
+
+- **Problem**: [문제 정의]
+- **Scope**: [이번 작업에서 수정해야 할 범위]
+- **Files**: [변경 가능성이 높은 파일 목록]
+- **Patterns**: [재사용할 패턴과 참조 파일]
+- **Code Style**: [반드시 따라야 하는 코드 스타일 / 팀 규칙]
+- **Constraints**: [구현 시 지켜야 할 제약]
+- **Risks**: [계획 시 반드시 고려해야 할 위험]
+- **Open Questions**: [미해결 질문]
+
+## 품질 기준
+
+좋은 explore 결과는 아래를 만족해야 한다.
+
+- 단순 파일 나열이 아니라 구조와 책임이 드러난다.
+- 다음 `plan` 단계가 추가 탐색 없이 바로 계획을 세울 수 있다.
+- 기존 패턴과 재사용 포인트가 분명하다.
+- 프로젝트 규칙 기반 제약이 명확하다.
+- 구현 전에 확인해야 할 위험과 미확인 사항이 정리되어 있다.

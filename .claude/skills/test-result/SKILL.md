@@ -1,28 +1,175 @@
 ---
 name: test-result
-description: Run project-defined validation commands and analyze the results after implementation and test-code are complete.
+description: 구현 및 테스트 코드 작성 결과를 바탕으로 프로젝트 규칙에 맞는 검증 명령을 실행하고, 테스트 결과를 분석하여 반환한다.
 disable-model-invocation: true
-context: fork
-agent: flow-test-result
-argument-hint: [ task-summary ]
+model: sonnet
+allowed-tools: Read, Glob, Grep, LS, Bash
+argument-hint: [ 작업-요약 ]
 ---
 
 # Test Result
 
-Task: $ARGUMENTS
+작업: $ARGUMENTS
 
-Goals:
+이 단계는 구현된 결과와 작성된 테스트 코드를 기준으로 실제 검증을 수행하고, 그 결과를 분석하여 반환하는 단계다.  
+이 단계에서는 테스트, 린트, 타입체크, 빌드 등 현재 프로젝트에서 유효한 검증 명령을 실행할 수 있으며, 실행 결과를 근거 기반으로 정리해야 한다.
 
-1. Load current project context from repository instructions.
-2. Execute the validation commands defined by the project.
-3. Summarize pass/fail status and analyze failures clearly.
+## 기본 원칙
 
-Required output:
+1. 현재 대화에 존재하는 `implement` 결과를 우선 입력으로 사용한다.
+2. 현재 대화에 존재하는 `test-code` 결과를 우선 입력으로 사용한다.
+3. 필요하면 현재 대화의 `plan` 결과도 참고한다.
+4. 프로젝트 root `CLAUDE.md`를 확인한다.
+5. 아래 규칙 파일을 반드시 읽는다.
+    - `.claude/rules/30-testing-and-verification.md`
+6. 검증은 현재 프로젝트에서 실제로 사용하는 명령과 테스트 전략을 따라야 한다.
+7. 실행하지 않은 것은 실행한 것처럼 말하지 않는다.
+8. 결과를 요약할 때는 반드시 실제 실행 결과를 근거로 해야 한다.
 
-- Executed commands
-- PASS / FAIL summary
-- Key logs or error summaries
-- Likely failure causes
-- Recommended next actions
+## 목표
 
-Do not modify implementation unless the task explicitly asks for a fix loop.
+1. 현재 구현과 테스트 코드에 대해 적절한 검증 명령을 실행한다.
+2. 테스트, 린트, 타입체크, 빌드 등 관련 검증 결과를 수집한다.
+3. 어떤 검증이 통과했고 어떤 검증이 실패했는지 명확히 정리한다.
+4. 실패 원인이 있다면 핵심 원인을 요약한다.
+5. 다음 `report` 단계가 바로 사용할 수 있도록 결과를 정리한다.
+
+## 반드시 확인할 입력
+
+### 1. implement 결과
+
+아래를 확인한다.
+
+- 변경된 파일
+- 구현된 내용
+- 구현 범위
+- 후속 확인 포인트
+
+### 2. test-code 결과
+
+아래를 확인한다.
+
+- 추가 또는 수정된 테스트 파일
+- 커버한 시나리오
+- 아직 커버되지 않은 시나리오
+- 실행해야 할 테스트 파일과 명령
+
+### 3. 프로젝트 테스트 규칙
+
+반드시 아래를 기준으로 검증한다.
+
+- root `CLAUDE.md`
+- `.claude/rules/30-testing-and-verification.md`
+
+## 검증 원칙
+
+- 프로젝트 규칙에 정의된 검증 명령을 우선 사용한다.
+- 구현 범위와 직접 관련된 검증부터 우선 실행한다.
+- 테스트 코드만 작성되었더라도, 실행 결과가 없으면 검증 완료로 판단하지 않는다.
+- 실패가 발생하면 핵심 원인을 요약하고, 다음 단계가 판단할 수 있게 정리한다.
+- 실행 범위를 확장할 필요가 있다면 이유를 명확히 설명한다.
+- 실행할 수 없는 검증이 있다면 무엇이 막고 있는지 명시한다.
+
+## 반드시 고려할 사항
+
+### 1. 실행 대상
+
+아래를 구분한다.
+
+- 반드시 실행해야 하는 테스트
+- 관련 린트 / 타입체크 / 빌드 명령
+- 선택적으로 실행 가능한 추가 검증
+
+### 2. 결과 분류
+
+결과는 아래 기준으로 나눠야 한다.
+
+- PASS
+- FAIL
+- NOT RUN
+
+### 3. 결과 해석
+
+아래를 정리해야 한다.
+
+- 실패한 테스트 또는 명령
+- 핵심 오류 메시지
+- 구현 문제인지, 테스트 문제인지, 환경 문제인지
+- 다음 단계에서 보고해야 할 위험 요소
+
+## 금지 사항
+
+- 실행하지 않은 검증을 실행한 것처럼 쓰지 않는다.
+- 실패 원인을 근거 없이 단정하지 않는다.
+- 결과를 숨기거나 완화해서 표현하지 않는다.
+- 테스트 결과 분석 단계에서 구현 코드를 수정하지 않는다.
+- 현재 작업과 무관한 추가 검증을 과도하게 수행하지 않는다.
+
+## 출력 규칙
+
+반드시 아래 **정확한 구조**로 출력한다.
+
+## Test Result Summary
+
+### Objective
+
+[이번 검증 목적을 1~2줄로 요약]
+
+### Executed Commands
+
+- `명령어`
+- `명령어`
+
+### PASS
+
+- [통과한 테스트 또는 검증]
+- [통과한 이유 또는 핵심 결과]
+
+### FAIL
+
+- [실패한 테스트 또는 검증]
+- [핵심 오류 또는 요약]
+
+### NOT RUN
+
+- [실행하지 못한 검증]
+- [실행하지 못한 이유]
+
+### Key Findings
+
+- [핵심 결과 요약]
+- [구현 검증 관점에서 중요한 발견]
+- [다음 단계에서 반드시 언급해야 하는 내용]
+
+### Failure Analysis
+
+- [실패 원인에 대한 분석]
+- [구현 문제 / 테스트 문제 / 환경 문제 구분]
+- [추가 조치가 필요한 경우 그 내용]
+
+### Verification Coverage
+
+- [무엇을 검증했는지]
+- [무엇은 아직 검증되지 않았는지]
+
+### Final Test Judgment
+
+- PASS
+- FAIL
+- PARTIAL
+
+### Report Handoff
+
+- **Executed Commands**: [실행한 검증 명령]
+- **Passed Checks**: [통과한 검증]
+- **Failed Checks**: [실패한 검증]
+- **Not Run Checks**: [실행하지 못한 검증]
+- **Key Risks**: [보고 단계에서 반드시 언급해야 하는 위험]
+- **Recommended Next Action**: [report 전에 필요한 조치가 있다면 그 내용]
+
+## 판정 규칙
+
+- 모든 필수 검증이 통과하면 `PASS`다.
+- 하나 이상의 필수 검증이 실패하면 `FAIL`이다.
+- 일부만 검증했고 아직 중요한 검증이 남아 있으면 `PARTIAL`이다.
+- `PARTIAL` 또는 `FAIL`이면, 무엇이 완료되지 않았는지 또는 무엇이 실패했는지 반드시 명시해야 한다.

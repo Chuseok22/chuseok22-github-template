@@ -1,32 +1,155 @@
 ---
 name: test-code
-description: Write or update test code for the implemented change according to project-specific testing rules.
+description: 구현된 변경사항에 대해 프로젝트의 테스트 규칙에 맞는 테스트 코드를 작성하거나 수정한다.
 disable-model-invocation: true
-context: fork
-agent: flow-test-code
-argument-hint: [ task-summary ]
+model: sonnet
+allowed-tools: Read, Glob, Grep, LS, Edit, MultiEdit, Write
+argument-hint: [ 작업-요약 ]
 ---
 
 # Test Code
 
-Task: $ARGUMENTS
+작업: $ARGUMENTS
 
-Goals:
+이 단계는 구현된 변경사항에 대해 테스트 코드를 작성하거나 수정하는 단계다.  
+이 단계에서는 최종 검증 판정을 내리지 않고, 현재 프로젝트의 테스트 전략에 맞는 테스트 코드를 추가하거나 보완하는 데 집중한다.
 
-1. Load current project context from repository instructions.
-2. Add or update tests that match the project's testing strategy.
-3. Cover the implemented behavior with focused tests.
+## 기본 원칙
 
-Required output:
+1. 현재 대화에 존재하는 `implement` 결과를 우선 입력으로 사용한다.
+2. 필요하면 현재 대화의 `explore`, `plan`, `review` 결과도 참고한다.
+3. 프로젝트 root `CLAUDE.md`를 확인한다.
+4. 아래 규칙 파일을 반드시 읽는다.
+    - `.claude/rules/30-testing-and-verification.md`
+5. 테스트 코드는 반드시 현재 프로젝트의 테스트 전략, 구조, 파일 배치 방식, 네이밍 규칙을 따른다.
+6. 이번 단계의 목적은 테스트 코드를 작성하는 것이지, 최종 테스트 결과를 판정하는 것이 아니다.
 
-- Added or changed test files
-- Covered scenarios
-- Uncovered scenarios
-- Assumptions or limitations
+## 목표
 
-Rules:
+1. 구현된 변경사항에 대해 필요한 테스트를 식별한다.
+2. 현재 프로젝트에 맞는 테스트 유형과 위치를 결정한다.
+3. 변경된 동작을 검증할 수 있도록 테스트 코드를 작성하거나 수정한다.
+4. 주요 정상 시나리오와 필요한 엣지 케이스를 커버한다.
+5. 다음 `/test-result` 단계에서 실행 및 결과 검토가 가능하도록 준비한다.
 
-- This stage is for writing or updating test code.
-- Do not treat verification as complete in this stage.
-- Final execution results belong to `/test-result`.
-- Only run minimal local feedback checks if needed to complete the test code itself, and clearly label them as local feedback rather than final verification.
+## 반드시 확인할 입력
+
+### 1. implement 결과
+
+아래를 기준으로 테스트 대상을 정한다.
+
+- 변경된 파일
+- 실제 구현 내용
+- 추가된 로직
+- 수정된 동작
+- 후속 검토 포인트
+
+### 2. 필요 시 참고할 이전 단계 결과
+
+필요하면 아래를 참고한다.
+
+- `explore`에서 파악한 프로젝트 구조
+- `plan`에서 정리한 테스트 전략과 검증 포인트
+- `review`에서 지적된 위험 요소나 경계 케이스
+
+### 3. 프로젝트 테스트 규칙
+
+반드시 아래를 기준으로 테스트 코드를 작성한다.
+
+- root `CLAUDE.md`
+- `.claude/rules/30-testing-and-verification.md`
+
+## 테스트 코드 작성 원칙
+
+- 테스트는 이번 구현으로 변경된 동작을 기준으로 작성한다.
+- 현재 프로젝트에서 사용하는 테스트 패턴을 우선 재사용한다.
+- 기존 테스트 구조, 파일 위치, 네이밍 규칙을 따른다.
+- 테스트는 구현 의도를 검증해야 하며, 단순 형식적 추가에 그치면 안 된다.
+- 주요 정상 동작, 실패 가능성, 경계 조건을 적절히 포함한다.
+- 과도한 보일러플레이트 테스트를 만들지 않는다.
+- 현재 작업과 무관한 테스트 리팩터링은 하지 않는다.
+
+## 반드시 고려할 사항
+
+### 1. 테스트 범위
+
+아래를 구분해서 생각한다.
+
+- 반드시 추가해야 하는 테스트
+- 기존 테스트 수정으로 충분한 경우
+- 아직 작성하지 못하는 테스트와 그 이유
+
+### 2. 테스트 위치
+
+아래를 판단한다.
+
+- 어느 디렉터리에 두는 것이 현재 프로젝트 패턴에 맞는지
+- 기존 테스트 파일에 추가할지
+- 새 테스트 파일이 필요한지
+
+### 3. 테스트 수준
+
+프로젝트 규칙에 맞게 아래 중 적절한 수준을 선택한다.
+
+- 단위 테스트
+- 통합 테스트
+- 컴포넌트 테스트
+- 훅 테스트
+- 기타 현재 프로젝트에서 사용하는 테스트 방식
+
+## 금지 사항
+
+- 이 단계에서 최종 검증이 완료되었다고 판단하지 않는다.
+- 테스트 실행 결과를 최종 판정으로 보고하지 않는다.
+- 프로젝트 패턴과 무관한 새 테스트 구조를 임의로 도입하지 않는다.
+- 구현 범위를 넘어서는 과도한 테스트 리팩터링을 하지 않는다.
+- 테스트가 필요한 상황에서 테스트 코드 없이 종료하지 않는다.
+
+## 출력 규칙
+
+반드시 아래 **정확한 구조**로 출력한다.
+
+## Test Code Result
+
+### Objective
+
+[이번 테스트 코드 작성 목적을 1~2줄로 요약]
+
+### Test Targets
+
+- [테스트 대상 기능 또는 동작]
+- [이번 구현으로 인해 검증해야 하는 포인트]
+
+### Added Or Changed Test Files
+
+- `path/file.test.ts` — 무엇을 추가 또는 수정했는지
+- `path/file.spec.tsx` — 무엇을 추가 또는 수정했는지
+
+### Covered Scenarios
+
+- [커버한 정상 시나리오]
+- [커버한 예외 / 경계 시나리오]
+
+### Uncovered Scenarios
+
+- [아직 커버하지 못한 시나리오]
+- [현재 단계에서 제외한 테스트가 있다면 그 이유]
+
+### Assumptions Or Limitations
+
+- [테스트 작성 시 둔 가정]
+- [프로젝트 구조나 환경 제약으로 인해 한계가 있는 부분]
+
+### Handoff For Test Result
+
+- **Test Files**: [실행 대상 테스트 파일]
+- **Commands To Run**: [다음 단계에서 실행해야 할 테스트 / 검증 명령]
+- **Expected Focus**: [다음 단계에서 중점적으로 확인해야 할 결과]
+- **Known Gaps**: [이미 알고 있는 빈틈이나 제한 사항]
+
+## 추가 규칙
+
+- 이 단계는 테스트 코드를 작성하거나 수정하는 단계다.
+- 최종 실행 결과 판정은 `/test-result` 단계에서 수행한다.
+- 로컬에서 최소한의 피드백 확인이 필요했다면, 그것은 최종 검증이 아니라 작성 보조용 확인이었다고 명시해야 한다.
+- `/test-result` 단계가 별도 탐색 없이 바로 실행할 수 있도록 실행 대상과 명령을 반드시 정리한다.
