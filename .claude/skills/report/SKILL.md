@@ -3,6 +3,7 @@ name: report
 description: 현재 대화의 explore, plan, implement, review, test-result 결과와 프로젝트 규칙을 바탕으로 최종 보고서를 작성한다.
 disable-model-invocation: true
 model: sonnet
+effort: high
 allowed-tools: Read, Glob, Grep, LS, Bash, Write
 argument-hint: [ 작업-요약 ]
 ---

@@ -3,6 +3,7 @@ name: implement
 description: explore와 plan 결과, 프로젝트 규칙, TODO.md, 사용자 요청을 바탕으로 실제 구현을 수행한다.
 disable-model-invocation: true
 model: sonnet
+effort: high
 allowed-tools: Read, Glob, Grep, LS, Edit, MultiEdit, Write
 argument-hint: [ 작업-요약 ]
 ---
@@ -101,7 +102,7 @@ argument-hint: [ 작업-요약 ]
 
 ### Objective
 
-[이번 구현 목표를 1~2줄로 요약]
+[이번 구현 내용을 1~2줄로 요약]
 
 ### Changed Files
 
@@ -127,9 +128,13 @@ argument-hint: [ 작업-요약 ]
 
 ### Follow-up Items
 
-- [다음 review에서 중점적으로 볼 점]
-- [test-code 단계에서 추가해야 할 테스트 포인트]
 - [남은 이슈가 있다면 그것]
+- [이후 작업할 내용이 있다면 작성]
+
+### TODO.md 수정
+
+- 작업한 내용에 대해서 TODO.md 목표 업데이트 및 간단하게 정리한다.
+- 앞으로 해야할 작업에 대해서 TODO.md 에 간단하게 정리한다.
 
 ## 품질 기준
 

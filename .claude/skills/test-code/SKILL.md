@@ -3,6 +3,7 @@ name: test-code
 description: 구현된 변경사항에 대해 프로젝트의 테스트 규칙에 맞는 테스트 코드를 작성하거나 수정한다.
 disable-model-invocation: true
 model: sonnet
+effort: high
 allowed-tools: Read, Glob, Grep, LS, Edit, MultiEdit, Write
 argument-hint: [ 작업-요약 ]
 ---

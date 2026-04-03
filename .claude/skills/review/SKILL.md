@@ -3,6 +3,7 @@ name: review
 description: explore, plan, implement 결과와 실제 변경 파일을 기준으로 구현 품질을 검토한다. 구조 적합성, 계획 준수, 단일 책임 원칙, 유지보수성, 보일러플레이트 여부를 확인한다.
 disable-model-invocation: true
 model: sonnet
+effort: high
 allowed-tools: Read, Glob, Grep, LS
 argument-hint: [ 작업-요약 ]
 ---

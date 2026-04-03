@@ -3,6 +3,7 @@ name: test-result
 description: 구현 및 테스트 코드 작성 결과를 바탕으로 프로젝트 규칙에 맞는 검증 명령을 실행하고, 테스트 결과를 분석하여 반환한다.
 disable-model-invocation: true
 model: sonnet
+effort: high
 allowed-tools: Read, Glob, Grep, LS, Bash
 argument-hint: [ 작업-요약 ]
 ---
