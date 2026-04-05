@@ -1,0 +1,48 @@
+name: NPM Publish
+
+on:
+  repository_dispatch:
+    types:
+      - version-bumped
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '빌드할 태그 (예: v1.0.0)'
+        required: true
+        type: string
+
+concurrency:
+  group: npm-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.sha || 'main' }}
+
+      - name: Node.js 20 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 패키지 빌드
+        run: npm run build
+
+      - name: npm 배포
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
