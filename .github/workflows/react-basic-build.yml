@@ -1,10 +1,10 @@
-name: workflow-name
+name: react build
 
 on:
   pull_request:
     branches:
-#      - test
 #      - main
+#      - test
 
 jobs:
   build:
@@ -51,14 +51,6 @@ jobs:
       - name: Install dependencies
         if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm ci
-
-      - name: Cache Next.js build
-        uses: actions/cache@v4
-        with:
-          path: .next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
-          restore-keys: |
-            ${{ runner.os }}-nextjs-
 
       - name: Build project
         run: npm run build

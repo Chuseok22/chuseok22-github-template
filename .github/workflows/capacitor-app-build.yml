@@ -18,6 +18,7 @@ permissions:
 
 env:
   APP_NAME: 'AppName'
+  ASSET_BASENAME: "app-name" # Artifact 파일명 (소문자 + 언더바)
   NODE_VERSION: '22'
   JAVA_VERSION: '21'
 
@@ -81,12 +82,12 @@ jobs:
               echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
               echo "✅ repository_dispatch tag: $RAW_TAG"
             elif [ -n "$RAW_VER" ] && [[ "$RAW_VER" =~ $SEMVER_VER_REGEX ]]; then
-              TAG="$RAW_TAG"
-              VERSION="${RAW_TAG#v}"
+              TAG="v$RAW_VER"
+              VERSION="$RAW_VER"
               SHOULD_BUILD="true"
               echo "should-build=true"  >> "$GITHUB_OUTPUT"
-              echo "tag=v$RAW_VER"      >> "$GITHUB_OUTPUT"
-              echo "version=$RAW_VER"   >> "$GITHUB_OUTPUT"
+              echo "tag=$TAG"           >> "$GITHUB_OUTPUT"
+              echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
               echo "✅ repository_dispatch version: $RAW_VER"
             else
               echo "should-build=false" >> "$GITHUB_OUTPUT"
@@ -122,10 +123,10 @@ jobs:
           fi
 
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  # Job 2: Next.js 빌드
+  # Job 2: Web 빌드
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   build-web:
-    name: 🌐 Build Next.js
+    name: 🌐 Build Web
     runs-on: ubuntu-latest
     needs: check-version-update
     if: needs.check-version-update.outputs.should-build == 'true'
@@ -136,6 +137,7 @@ jobs:
         with:
           ref: ${{ needs.check-version-update.outputs.tag }}
 
+      # .env 파일 생성
       - name: Create .env.production file
         run: |
           set -Eeuo pipefail
@@ -162,7 +164,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: web-build-${{ needs.check-version-update.outputs.version }}
-          path: out/
+          path: dist/
+          if-no-files-found: 'error'
           retention-days: 1
 
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -199,10 +202,22 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: web-build-${{ needs.check-version-update.outputs.version }}
-          path: out/
+          path: dist/
 
       - name: 📦 Install dependencies
         run: npm ci
+
+#      google-services.json 환경변수 등록 시 주석 제거 후 사용
+#      - name: 🔥 Inject google-services.json
+#        env:
+#          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+#        run: |
+#          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+#            echo "❌ GOOGLE_SERVICES_JSON secret not found"
+#            exit 1
+#          fi
+#          echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+#          echo "✅ google-services.json injected"
 
       - name: 🔄 Capacitor sync
         run: npx cap sync android
@@ -269,8 +284,8 @@ jobs:
             exit 1
           fi
 
-          APK_DEST="${{ env.APP_NAME }}-${VERSION}.apk"
-          AAB_DEST="${{ env.APP_NAME }}-${VERSION}.aab"
+          APK_DEST="${{ env.ASSET_BASENAME }}-${VERSION}.apk"
+          AAB_DEST="${{ env.ASSET_BASENAME }}-${VERSION}.aab"
 
           cp "$APK_SRC" "$APK_DEST"
           cp "$AAB_SRC" "$AAB_DEST"
@@ -350,13 +365,26 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: web-build-${{ needs.check-version-update.outputs.version }}
-          path: out/
+          path: dist/
 
       - name: 📦 Install dependencies
         run: npm ci
 
       - name: 🔄 Capacitor sync
         run: npx cap sync ios
+
+      - name: 🔧 Set SPM cache path
+        run: |
+          echo "SPM_CACHE_PATH=$HOME/spm-packages" >> "$GITHUB_ENV"
+          mkdir -p "$HOME/spm-packages"
+
+      - name: 📦 Cache SPM packages
+        uses: actions/cache@v4
+        with:
+          path: ~/spm-packages
+          key: spm-${{ runner.os }}-${{ hashFiles('ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'ios/App/CapApp-SPM/Package.swift') }}
+          restore-keys: |
+            spm-${{ runner.os }}-
 
       - name: 📝 Update iOS version
         env:
@@ -401,6 +429,7 @@ jobs:
             "$KEYCHAIN_PATH"
 
           security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security default-keychain -d user -s "$KEYCHAIN_PATH"
 
           # Install provisioning profile
           PROVISION_PATH="$RUNNER_TEMP/profile.mobileprovision"
@@ -437,7 +466,18 @@ jobs:
           set -Eeuo pipefail
           xcodebuild -resolvePackageDependencies \
             -project ios/App/App.xcodeproj \
-            -scheme App
+            -scheme App \
+            -clonedSourcePackagesDirPath "$SPM_CACHE_PATH"
+
+      - name: 🔎 Inspect Release signing settings
+        run: |
+          set -Eeuo pipefail
+
+          xcodebuild -showBuildSettings \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release | \
+            egrep 'PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_STYLE|CODE_SIGN_IDENTITY|PROVISIONING_PROFILE_SPECIFIER|PROVISIONING_PROFILE'
 
       - name: 🏗️ Build iOS archive
         env:
@@ -462,10 +502,8 @@ jobs:
             -archivePath "$ARCHIVE_PATH" \
             -destination 'generic/platform=iOS' \
             -derivedDataPath "$DERIVED_DATA_PATH" \
+            -clonedSourcePackagesDirPath "$SPM_CACHE_PATH" \
             -resultBundlePath "$RESULT_PATH" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_NAME" \
             DEVELOPMENT_TEAM="$TEAM_ID" \
             2>&1 | tee "$LOG_PATH"
 
@@ -486,6 +524,8 @@ jobs:
           TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
           BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID }}
         run: |
+          set -Eeuo pipefail
+
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -519,7 +559,7 @@ jobs:
           VERSION: ${{ needs.check-version-update.outputs.version }}
         run: |
           IPA_SRC="$RUNNER_TEMP/export/App.ipa"
-          IPA_DEST="${{ env.APP_NAME }}-${VERSION}.ipa"
+          IPA_DEST="${{ env.ASSET_BASENAME }}-${VERSION}.ipa"
 
           if [ ! -f "$IPA_SRC" ]; then
             echo "❌ IPA not found at $IPA_SRC"
