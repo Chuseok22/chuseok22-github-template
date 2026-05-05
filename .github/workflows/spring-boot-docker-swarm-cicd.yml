@@ -46,10 +46,16 @@ jobs:
 
       # application-prod.yml 파일을 빌드 전에 생성
       - name: Create application-prod.yml from secret
-        run: |
-          cat << 'EOF' > ./src/main/resources/application-prod.yml
-          ${{ secrets.APPLICATION_PROD_YML }}
-          EOF
+        env:
+          APPLICATION_PROD_YML: ${{ secrets.APPLICATION_PROD_YML }}
+        run: printf '%s' "$APPLICATION_PROD_YML" > src/main/resources/application-prod.yml
+
+      # firebase-adminsdk.json 파일을 빌드 전에 생성
+      # env: 로 먼저 받아 쉘 변수로 전달해야 JSON 내부 " 문자가 쉘 쿼팅을 깨지 않음
+      - name: Create firebase-adminsdk.json from secret
+        env:
+          FIREBASE_ADMINSDK_JSON: ${{ secrets.FIREBASE_ADMINSDK_JSON }}
+        run: printf '%s' "$FIREBASE_ADMINSDK_JSON" > src/main/resources/firebase-adminsdk.json
 
       # 브랜치 별 active profile 설정
       - name: Decide active profile
