@@ -1,0 +1,96 @@
+# ============================================================
+# [용도] GitHub Actions Tool Repository 전용 워크플로
+#
+# 이 워크플로는 GitHub Actions 형태로 배포되는 툴 저장소에서만
+# 사용해야 합니다. 일반 애플리케이션·라이브러리 프로젝트에는
+# 적합하지 않습니다.
+#
+# [동작 설명]
+# v1.0.3 같은 stable semver 태그가 push되면, 해당 major 버전의
+# floating tag(예: v1)를 자동으로 최신 커밋으로 이동시킵니다.
+#
+# 소비자 저장소에서 `uses: owner/repo@v1`처럼 major tag를 참조할 때,
+# 별도 수정 없이 항상 최신 패치·마이너 버전을 사용할 수 있게 합니다.
+#
+# [주의사항]
+# - v0.x.x 단계에서는 floating tag를 운영하지 않는 것이 관례입니다.
+#   v1.0.0 정식 릴리즈 이후부터 이 워크플로를 활성화하세요.
+# - GITHUB_TOKEN으로 push된 태그는 이 워크플로를 트리거하지 않습니다.
+#   태그는 반드시 사람(또는 PAT)이 직접 push해야 합니다.
+# - 낮은 버전 태그가 나중에 push되어도 최신 버전 검증 로직으로 차단합니다.
+# ============================================================
+
+name: Update major floating tag
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-major-floating-tag
+  cancel-in-progress: false
+
+jobs:
+  update-major-tag:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update major floating tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RELEASE_TAG="${GITHUB_REF_NAME}"
+
+          # stable semver tag만 허용 (v1.0.3 형태)
+          if [[ ! "${RELEASE_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Skip non-stable semver tag: ${RELEASE_TAG}"
+            exit 0
+          fi
+
+          MAJOR_TAG="${RELEASE_TAG%%.*}"
+
+          # 해당 major의 최신 stable tag인지 확인
+          LATEST_STABLE_TAG="$(
+            git tag --list "${MAJOR_TAG}.*" \
+              | grep -E "^${MAJOR_TAG}\.[0-9]+\.[0-9]+$" \
+              | sort -V \
+              | tail -n 1
+          )"
+
+          if [[ "${RELEASE_TAG}" != "${LATEST_STABLE_TAG}" ]]; then
+            echo "Skip: ${RELEASE_TAG} is not the latest stable tag for ${MAJOR_TAG}."
+            echo "Latest stable tag is ${LATEST_STABLE_TAG}."
+            exit 0
+          fi
+
+          # annotated tag든 lightweight tag든 실제 commit SHA로 이동
+          TARGET_COMMIT_SHA="$(git rev-list -n 1 "${RELEASE_TAG}")"
+
+          CURRENT_MAJOR_COMMIT_SHA=""
+          if git rev-parse -q --verify "refs/tags/${MAJOR_TAG}" >/dev/null; then
+            CURRENT_MAJOR_COMMIT_SHA="$(git rev-list -n 1 "${MAJOR_TAG}")"
+          fi
+
+          if [[ "${CURRENT_MAJOR_COMMIT_SHA}" == "${TARGET_COMMIT_SHA}" ]]; then
+            echo "${MAJOR_TAG} already points to ${RELEASE_TAG}."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # major floating tag 강제 갱신
+          git tag -f "${MAJOR_TAG}" "${TARGET_COMMIT_SHA}"
+
+          # refs/tags 명시로 branch/tag 이름 충돌 방지
+          git push origin "refs/tags/${MAJOR_TAG}:refs/tags/${MAJOR_TAG}" --force
