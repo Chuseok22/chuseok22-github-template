@@ -6,8 +6,19 @@
 # 적합하지 않습니다.
 #
 # [동작 설명]
-# v1.0.3 같은 stable semver 태그가 push되면, 해당 major 버전의
-# floating tag(예: v1)를 자동으로 최신 커밋으로 이동시킵니다.
+# 다음 두 가지 방식으로 트리거됩니다.
+#
+# 1. push (직접 push):
+#    사람 또는 PAT 토큰으로 v1.0.3 같은 stable semver 태그를 직접
+#    push하면 해당 major 버전의 floating tag(예: v1)를 자동 갱신합니다.
+#
+# 2. repository_dispatch (version-management 액션 연동):
+#    GITHUB_TOKEN으로 push된 태그는 push 이벤트를 트리거하지 않습니다.
+#    대신 version-management 액션이 버전 증가 후 'version-bumped'
+#    repository_dispatch 이벤트를 자동으로 발송하며, 이를 수신하여
+#    floating tag를 갱신합니다.
+#    (auto-version.yml의 dispatch_event_type 입력값을 변경한 경우
+#     아래 types 값도 동일하게 수정해야 합니다.)
 #
 # 소비자 저장소에서 `uses: owner/repo@v1`처럼 major tag를 참조할 때,
 # 별도 수정 없이 항상 최신 패치·마이너 버전을 사용할 수 있게 합니다.
@@ -15,8 +26,6 @@
 # [주의사항]
 # - v0.x.x 단계에서는 floating tag를 운영하지 않는 것이 관례입니다.
 #   v1.0.0 정식 릴리즈 이후부터 이 워크플로를 활성화하세요.
-# - GITHUB_TOKEN으로 push된 태그는 이 워크플로를 트리거하지 않습니다.
-#   태그는 반드시 사람(또는 PAT)이 직접 push해야 합니다.
 # - 낮은 버전 태그가 나중에 push되어도 최신 버전 검증 로직으로 차단합니다.
 # ============================================================
 
@@ -26,6 +35,8 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+  repository_dispatch:
+    types: [version-bumped]
 
 permissions:
   contents: write
@@ -49,7 +60,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          RELEASE_TAG="${GITHUB_REF_NAME}"
+          # 이벤트 종류에 따라 처리할 태그 결정
+          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            # version-management 액션이 발송한 repository_dispatch 이벤트에서 태그 추출
+            RELEASE_TAG="${{ github.event.client_payload.new_tag }}"
+            if [[ -z "${RELEASE_TAG}" ]]; then
+              echo "repository_dispatch payload에 new_tag가 없습니다. 스킵합니다."
+              exit 0
+            fi
+          else
+            RELEASE_TAG="${GITHUB_REF_NAME}"
+          fi
 
           # stable semver tag만 허용 (v1.0.3 형태)
           if [[ ! "${RELEASE_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
