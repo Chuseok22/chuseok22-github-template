@@ -1,4 +1,5 @@
-name: python-fast-api-cicd.yml
+# fast-api & django 호환
+name: python-server-cicd
 on:
   push:
     branches:
