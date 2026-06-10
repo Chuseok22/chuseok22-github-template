@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir -r /app/requirements/production.txt
 COPY . /app
 
 # whitenoise 정적파일 수집 (DB 불필요, 빌드 타임에 처리)
-RUN SECRET_KEY=build-time-dummy python manage.py collectstatic --noinput
+RUN SECRET_KEY=build-time-dummy DATABASE_URL=sqlite:///dummy python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
