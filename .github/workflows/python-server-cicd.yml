@@ -15,6 +15,7 @@ env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   PORT: 8080
   APP_PORT: 8080
+  MOUNT_DIR: "/volume/project/..."
 
 jobs:
   build:
@@ -80,6 +81,7 @@ jobs:
             IMAGE=${{ env.DOCKERHUB_USERNAME }}/${{ env.PROJECT_NAME }}:${BRANCH}
             PORT=${{ env.PORT }}
             APP_PORT=${{ env.APP_PORT }}
+            MOUNT_DIR="${{ env.MOUNT_DIR }}"
             WORKDIR="/opt/${PROJECT_NAME}/${BRANCH}"
             
             echo "브랜치: ${BRANCH}"
@@ -108,6 +110,8 @@ jobs:
             echo $PW | sudo -S docker run -d -p "${PORT}":"${APP_PORT}" --name "${CONTAINER_NAME}" \
               -e TZ=Asia/Seoul \
               --env-file "${WORKDIR}/.env" \
+              -v /etc/localtime:/etc/localtime:ro \
+              -v "${MOUNT_DIR}":/app \
               "${IMAGE}"
             
             echo "헬스체크 (최대 120회, 1초간격)"
