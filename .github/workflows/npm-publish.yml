@@ -19,6 +19,7 @@ concurrency:
 permissions:
   contents: write
   actions: read
+  id-token: write
 
 jobs:
   publish:
@@ -30,11 +31,14 @@ jobs:
         with:
           ref: ${{ github.event.client_payload.sha || 'main' }}
 
-      - name: Node.js 20 설정
+      - name: Node.js 22 설정
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: npm CLI 최신 버전으로 업그레이드
+        run: npm install -g npm@latest
 
       - name: 의존성 설치
         run: npm ci
