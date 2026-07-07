@@ -38,6 +38,7 @@ jobs:
       should-build: ${{ steps.check-update.outputs.should-build }}
       tag: ${{ steps.check-update.outputs.tag }}
       version: ${{ steps.check-update.outputs.version }}
+      sha: ${{ steps.check-update.outputs.sha }}
 
     steps:
       - name: 🛎️ Checkout
@@ -70,17 +71,23 @@ jobs:
           else
             RAW_TAG="${{ github.event.client_payload.new_tag }}"
             RAW_VER="${{ github.event.client_payload.new_version }}"
+            RAW_SHA="${{ github.event.client_payload.sha }}"
+            if [[ ! "$RAW_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+              RAW_SHA=""
+            fi
 
             if [ -n "$RAW_TAG" ] && [[ "$RAW_TAG" =~ $SEMVER_TAG_REGEX ]]; then
               VERSION="${RAW_TAG#v}"
               echo "should-build=true"  >> "$GITHUB_OUTPUT"
               echo "tag=$RAW_TAG"       >> "$GITHUB_OUTPUT"
               echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
+              echo "sha=$RAW_SHA"       >> "$GITHUB_OUTPUT"
               echo "✅ repository_dispatch tag: $RAW_TAG"
             elif [ -n "$RAW_VER" ] && [[ "$RAW_VER" =~ $SEMVER_VER_REGEX ]]; then
               echo "should-build=true"  >> "$GITHUB_OUTPUT"
               echo "tag=v$RAW_VER"      >> "$GITHUB_OUTPUT"
               echo "version=$RAW_VER"   >> "$GITHUB_OUTPUT"
+              echo "sha=$RAW_SHA"       >> "$GITHUB_OUTPUT"
               echo "✅ repository_dispatch version: $RAW_VER"
             else
               echo "should-build=false" >> "$GITHUB_OUTPUT"
@@ -103,7 +110,7 @@ jobs:
       - name: 코드 체크아웃
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.check-version-update.outputs.tag }}
+          ref: ${{ needs.check-version-update.outputs.sha || needs.check-version-update.outputs.tag }}
           fetch-depth: 0
 
       - name: 🏷️ 버전 정보
