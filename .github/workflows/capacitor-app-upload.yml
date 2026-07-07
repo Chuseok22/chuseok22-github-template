@@ -24,8 +24,8 @@ env:
   # 다른 프로젝트에 그대로 복사해도 동작하게 하려면 여기만 수정하면 됨
   # ─────────────────────────────────────────────────────────────
 
-  # Release asset 파일명 prefix (capacitor-build.yml에서 APP_NAME과 동일해야 함)
-  ASSET_PREFIX: "AppName"
+  # Release asset 파일명 prefix (capacitor-app-build.yml의 ASSET_BASENAME과 반드시 동일해야 함)
+  ASSET_BASENAME: "app-name"
 
   # Google Play Console 패키지명 (applicationId)
   ANDROID_PACKAGE_NAME: "com.example.app"
@@ -108,7 +108,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          if [ -z "${ANDROID_PACKAGE_NAME}" ] || [ "${ANDROID_PACKAGE_NAME}" = "com.example.waitee" ]; then
+          if [ -z "${ANDROID_PACKAGE_NAME}" ] || [ "${ANDROID_PACKAGE_NAME}" = "com.example.app" ]; then
             echo "❌ ANDROID_PACKAGE_NAME must be set to real applicationId"
             exit 1
           fi
@@ -157,7 +157,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          if [ -z "${IOS_BUNDLE_ID}" ] || [ "${IOS_BUNDLE_ID}" = "com.example.waitee" ]; then
+          if [ -z "${IOS_BUNDLE_ID}" ] || [ "${IOS_BUNDLE_ID}" = "com.example.app" ]; then
             echo "❌ IOS_BUNDLE_ID must be set to real bundle id"
             exit 1
           fi
